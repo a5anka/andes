@@ -27,14 +27,8 @@ import me.prettyprint.hector.api.mutation.Mutator;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.wso2.andes.configuration.util.ConfigurationProperties;
-import org.wso2.andes.kernel.AndesContextStore;
-import org.wso2.andes.kernel.AndesException;
-import org.wso2.andes.kernel.AndesMessage;
-import org.wso2.andes.kernel.AndesMessageMetadata;
-import org.wso2.andes.kernel.AndesMessagePart;
-import org.wso2.andes.kernel.AndesRemovableMetadata;
-import org.wso2.andes.kernel.DurableStoreConnection;
-import org.wso2.andes.kernel.MessageStore;
+import org.wso2.andes.kernel.*;
+import org.wso2.andes.kernel.slot.Slot;
 import org.wso2.andes.metrics.MetricsConstants;
 import org.wso2.andes.store.AndesStoreUnavailableException;
 import org.wso2.carbon.metrics.manager.Level;
@@ -340,15 +334,15 @@ public class HectorBasedMessageStoreImpl implements MessageStore {
     @Override
     public void moveMetadataToQueue(long messageId, String currentQueueName,
                                     String targetQueueName) throws AndesException {
-        List<AndesMessageMetadata> messageMetadataList = getMetadataList(currentQueueName,
+        List<DeliverableAndesMetadata> messageMetadataList = getMetadataList(null, currentQueueName,
                 messageId, messageId);
 
         if (messageMetadataList == null || messageMetadataList.size() == 0) {
             throw new AndesException(
                     "Message MetaData not found to move the message to Dead Letter Channel");
         }
-        ArrayList<Long> removableMetaDataList = new ArrayList<>();
-        removableMetaDataList.add(messageId);
+        ArrayList<AndesMessageMetadata> removableMetaDataList = new ArrayList<>();
+        removableMetaDataList.add(messageMetadataList.get(0));
 
         addMetadataToQueue(targetQueueName, messageMetadataList.get(0));
         deleteMessageMetadataFromQueue(currentQueueName, removableMetaDataList);
@@ -366,7 +360,7 @@ public class HectorBasedMessageStoreImpl implements MessageStore {
      * {@inheritDoc}
      */
     @Override
-    public void moveMetadataToDLC(List<Long> messageIds, String dlcQueueName) throws AndesException {
+    public void moveMetadataToDLC(List<AndesMessageMetadata> messages, String dlcQueueName) throws AndesException {
         throw new NotImplementedException();
     }
 
@@ -439,16 +433,16 @@ public class HectorBasedMessageStoreImpl implements MessageStore {
      * In such case we need to get all metadata between firstMsgId and lastMsgID
      */
     @Override
-    public List<AndesMessageMetadata> getMetadataList(String queueName, long firstMsgId,
+    public List<DeliverableAndesMetadata> getMetadataList(Slot slot, String queueName, long firstMsgId,
                                                       long lastMsgID) throws AndesException {
 
         Context context = MetricManager.timer(Level.DEBUG, MetricsConstants.GET_META_DATA_LIST).start();
         try {
             //Contains all metadata between firstMsgId and lastMsgID
-            List<AndesMessageMetadata> allMetadataList = new ArrayList<AndesMessageMetadata>();
+            List<DeliverableAndesMetadata> allMetadataList = new ArrayList<>();
             //Get first set of metadata list between firstMsgId and lastMsgID
-            List<AndesMessageMetadata> metadataList = HectorDataAccessHelper.getMessagesFromQueue
-                    (queueName, HectorConstants.META_DATA_COLUMN_FAMILY, keyspace, firstMsgId,
+            List<DeliverableAndesMetadata> metadataList = HectorDataAccessHelper.getMessagesFromQueue
+                    (slot, queueName, HectorConstants.META_DATA_COLUMN_FAMILY, keyspace, firstMsgId,
                             lastMsgID, HectorDataAccessHelper.STANDARD_PAGE_SIZE, true);
             allMetadataList.addAll(metadataList);
             int metadataCount = metadataList.size();
@@ -461,7 +455,7 @@ public class HectorBasedMessageStoreImpl implements MessageStore {
                     break;
                 }
                 metadataList = HectorDataAccessHelper.getMessagesFromQueue
-                        (queueName, HectorConstants.META_DATA_COLUMN_FAMILY, keyspace, nextFirstMsgId,
+                        (slot, queueName, HectorConstants.META_DATA_COLUMN_FAMILY, keyspace, nextFirstMsgId,
                                 lastMsgID, HectorDataAccessHelper.STANDARD_PAGE_SIZE, true);
                 allMetadataList.addAll(metadataList);
                 metadataCount = metadataList.size();
@@ -484,7 +478,7 @@ public class HectorBasedMessageStoreImpl implements MessageStore {
             throws AndesException {
 
         ScheduledExecutorService scheduledExecutorService = Executors.newScheduledThreadPool(1);
-        List<AndesMessageMetadata> messageMetadataList = new ArrayList<AndesMessageMetadata>();
+        List<AndesMessageMetadata> messageMetadataList = new ArrayList<>();
         long lastMsgId;
         int listSize;
 
@@ -497,8 +491,8 @@ public class HectorBasedMessageStoreImpl implements MessageStore {
         lastMsgId = firstMsgId + messageIdDifference;
         long lastRecoveryMessageId = ServerStartupRecoveryUtils.getMessageIdToCompleteRecovery();
         try {
-            List<AndesMessageMetadata> messagesFromQueue = HectorDataAccessHelper
-                    .getMessagesFromQueue(queueName,
+            List<DeliverableAndesMetadata> messagesFromQueue = HectorDataAccessHelper
+                    .getMessagesFromQueue(null, queueName,
                             HectorConstants.META_DATA_COLUMN_FAMILY,
                             keyspace, firstMsgId, lastMsgId,
                             count, true);
@@ -510,7 +504,7 @@ public class HectorBasedMessageStoreImpl implements MessageStore {
                     long nextMsgId = lastMsgId + 1;
                     lastMsgId = nextMsgId + messageIdDifference;
                     messagesFromQueue = HectorDataAccessHelper
-                            .getMessagesFromQueue(queueName,
+                            .getMessagesFromQueue(null, queueName,
                                     HectorConstants.META_DATA_COLUMN_FAMILY,
                                     keyspace, nextMsgId, lastMsgId,
                                     count, true);
@@ -572,26 +566,26 @@ public class HectorBasedMessageStoreImpl implements MessageStore {
      * {@inheritDoc}
      */
     @Override
-    public void deleteMessageMetadataFromQueue(String queueName, List<Long>
+    public void deleteMessageMetadataFromQueue(String queueName, List<AndesMessageMetadata>
             messagesToRemove) throws AndesException {
 
         Context context = MetricManager.timer(Level.DEBUG, MetricsConstants.DELETE_MESSAGE_META_DATA_FROM_QUEUE).start();
         try {
             if (log.isTraceEnabled()) {
                 StringBuilder messageIDsString = new StringBuilder();
-                for (Long metadata : messagesToRemove) {
-                    messageIDsString.append(metadata.longValue()).append(COMMA);
+                for (AndesMessageMetadata metadata : messagesToRemove) {
+                    messageIDsString.append(metadata.getMessageID()).append(COMMA);
                 }
                 log.trace(messagesToRemove.size() + " messages removed : " + messageIDsString);
             }
             Mutator<String> mutator = HFactory.createMutator(keyspace,
                     HectorConstants.stringSerializer);
 
-            for (Long message : messagesToRemove) {
+            for (AndesMessageMetadata message : messagesToRemove) {
                 HectorDataAccessHelper
                         .deleteLongColumnFromRaw(
                                 HectorConstants.META_DATA_COLUMN_FAMILY,
-                                queueName, message.longValue(), mutator, false);
+                                queueName, message.getMessageID(), mutator, false);
             }
 
             //batch execute
@@ -609,15 +603,15 @@ public class HectorBasedMessageStoreImpl implements MessageStore {
      */
     @Override
     public void deleteMessages(final String storageQueueName,
-                               List<Long> messagesToRemove, boolean deleteAllMetaData)
+                               List<AndesMessageMetadata> messagesToRemove, boolean deleteAllMetaData)
             throws AndesException {
         Context context = MetricManager.timer(Level.INFO, MetricsConstants.DELETE_MESSAGE_META_DATA_AND_CONTENT)
                 .start();
         try {
             if (log.isTraceEnabled()) {
                 StringBuilder messageIDsString = new StringBuilder();
-                for (Long messageID : messagesToRemove) {
-                    messageIDsString.append(messageID.longValue()).append(COMMA);
+                for (AndesMessageMetadata message : messagesToRemove) {
+                    messageIDsString.append(message.getMessageID()).append(COMMA);
                 }
                 log.trace(messagesToRemove.size() + " messages removed : " + messageIDsString);
             }
@@ -628,19 +622,19 @@ public class HectorBasedMessageStoreImpl implements MessageStore {
             //if all metadata is not be removed, add metadata and content of each message to delete
             //else, add content of each message and all metadata for the queue to delete
             if (!deleteAllMetaData) {
-                for (Long messageID : messagesToRemove) {
+                for (AndesMessageMetadata message : messagesToRemove) {
                     HectorDataAccessHelper
                             .deleteLongColumnFromRaw(
                                     HectorConstants.META_DATA_COLUMN_FAMILY,
-                                    storageQueueName, messageID.longValue(), mutator, false);
+                                    storageQueueName, message.getMessageID(), mutator, false);
                     rows2Remove.add(MESSAGE_CONTENT_CASSANDRA_ROW_NAME_PREFIX +
-                            messageID.longValue());
+                            message.getMessageID());
                 }
             } else {
                 mutator.addDeletion(storageQueueName, HectorConstants.META_DATA_COLUMN_FAMILY);
-                for (Long messageID : messagesToRemove) {
+                for (AndesMessageMetadata message : messagesToRemove) {
                     rows2Remove.add(MESSAGE_CONTENT_CASSANDRA_ROW_NAME_PREFIX +
-                            messageID.longValue());
+                            message.getMessageID());
                 }
             }
             if (!rows2Remove.isEmpty()) {
@@ -663,9 +657,9 @@ public class HectorBasedMessageStoreImpl implements MessageStore {
      * {@inheritDoc}
      */
     @Override
-    public List<AndesRemovableMetadata> getExpiredMessages(int limit) throws AndesException {
+    public List<AndesMessageMetadata> getExpiredMessages(int limit) throws AndesException {
         //todo: implement
-        return new ArrayList<AndesRemovableMetadata>();
+        return new ArrayList<>();
     }
 
     /**
@@ -908,10 +902,10 @@ public class HectorBasedMessageStoreImpl implements MessageStore {
      * {@inheritDoc}
      */
     @Override
-    public AndesMessageMetadata getRetainedMetadata(String destination) throws AndesException {
+    public DeliverableAndesMetadata getRetainedMetadata(String destination) throws AndesException {
 
         // TODO: implement this method
-        AndesMessageMetadata messageMetadata = null;
+        DeliverableAndesMetadata messageMetadata = null;
         log.warn("Hector base message store methods for retain feature will be implemented " +
                  "in next iteration");
         return messageMetadata;

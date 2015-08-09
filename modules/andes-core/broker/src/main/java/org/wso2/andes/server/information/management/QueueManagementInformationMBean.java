@@ -285,10 +285,13 @@ public class QueueManagementInformationMBean extends AMQManagedObject implements
                                                   @MBeanOperationParameter(name = "destinationQueueName",
             description = "The Dead Letter Queue Name for the selected tenant") String destinationQueueName) {
 
-        // Creating a list of removable metadata list.
-        List<AndesRemovableMetadata> removableMetadataList = new ArrayList<>(andesMetadataIDs.length);
+        List<AndesMessageMetadata> removableMetadataList = new ArrayList<>(andesMetadataIDs.length);
+
         for (long andesMetadataID : andesMetadataIDs) {
-            removableMetadataList.add(new AndesRemovableMetadata(andesMetadataID, destinationQueueName, destinationQueueName));
+            AndesMessageMetadata messageToRemove = new AndesMessageMetadata(andesMetadataID, null, false);
+            messageToRemove.setStorageQueueName(destinationQueueName);
+            messageToRemove.setDestination(destinationQueueName);
+            removableMetadataList.add(messageToRemove);
         }
 
         // Deleting messages which are in the list.
@@ -313,7 +316,7 @@ public class QueueManagementInformationMBean extends AMQManagedObject implements
 
         if (null != andesMetadataIDs) {
             List<Long> andesMessageIdList = Arrays.asList(ArrayUtils.toObject(andesMetadataIDs));
-            List<AndesRemovableMetadata> removableMetadataList = new ArrayList<>(andesMessageIdList.size());
+            List<AndesMessageMetadata> messagesToRemove = new ArrayList<>(andesMessageIdList.size());
 
             try {
                 Map<Long, List<AndesMessagePart>> messageContent = Andes.getInstance().getContent(andesMessageIdList);
@@ -328,12 +331,11 @@ public class QueueManagementInformationMBean extends AMQManagedObject implements
                     AndesMessageMetadata metadata = Andes.getInstance().getMessageMetaData(messageId);
                     String destination = metadata.getDestination();
 
-                    // Create a removable metadata to remove the current message
-                    removableMetadataList.add(new AndesRemovableMetadata(messageId, destinationQueueName,
-                            destinationQueueName));
-
                     metadata.setStorageQueueName(AndesUtils.getStorageQueueForDestination(destination,
                             ClusterResourceHolder.getInstance().getClusterManager().getMyNodeID(), false));
+
+                    messagesToRemove.add(metadata);
+
                     AndesMessage andesMessage = new AndesMessage(metadata);
 
                     // Update Andes message with all the chunk details
@@ -343,11 +345,12 @@ public class QueueManagementInformationMBean extends AMQManagedObject implements
                     }
 
                     // Handover message to Andes
+                    //TODO:do we need to update message ID before sending?
                     Andes.getInstance().messageReceived(andesMessage, andesChannel, disablePubAck);
                 }
 
                 // Delete old messages
-                Andes.getInstance().deleteMessages(removableMetadataList, false);
+                Andes.getInstance().deleteMessages(messagesToRemove, false);
 
                 if (interruptedByFlowControl) {
                     // Throw this out so UI will show this to the user as an error message.
@@ -380,7 +383,7 @@ public class QueueManagementInformationMBean extends AMQManagedObject implements
         if (null != andesMetadataIDs) {
 
             List<Long> andesMessageIdList = Arrays.asList(ArrayUtils.toObject(andesMetadataIDs));
-            List<AndesRemovableMetadata> removableMetadataList = new ArrayList<>(andesMessageIdList.size());
+            List<AndesMessageMetadata> messagesToRemove = new ArrayList<>(andesMessageIdList.size());
 
             try {
                 Map<Long, List<AndesMessagePart>> messageContent = Andes.getInstance().getContent(andesMessageIdList);
@@ -395,10 +398,6 @@ public class QueueManagementInformationMBean extends AMQManagedObject implements
 
                     AndesMessageMetadata metadata = Andes.getInstance().getMessageMetaData(messageId);
 
-                    // Create a removable metadata to remove the current message
-                    removableMetadataList.add(new AndesRemovableMetadata(messageId, destinationQueueName,
-                            destinationQueueName));
-
                     // Set the new destination queue
                     metadata.setDestination(newDestinationQueueName);
                     metadata.setStorageQueueName(AndesUtils.getStorageQueueForDestination(newDestinationQueueName,
@@ -407,6 +406,8 @@ public class QueueManagementInformationMBean extends AMQManagedObject implements
                     metadata.updateMetadata(newDestinationQueueName, AMQPUtils.DIRECT_EXCHANGE_NAME);
                     AndesMessage andesMessage = new AndesMessage(metadata);
 
+                    messagesToRemove.add(metadata);
+
                     // Update Andes message with all the chunk details
                     List<AndesMessagePart> messageParts = messageContent.get(messageId);
                     for (AndesMessagePart messagePart : messageParts) {
@@ -414,11 +415,12 @@ public class QueueManagementInformationMBean extends AMQManagedObject implements
                     }
 
                     // Handover message to Andes
+                    //TODO: do we need to update the message id before sending?
                     Andes.getInstance().messageReceived(andesMessage, andesChannel, disablePubAck);
                 }
 
                 // Delete old messages
-                Andes.getInstance().deleteMessages(removableMetadataList, false);
+                Andes.getInstance().deleteMessages(messagesToRemove, false);
 
                 if (interruptedByFlowControl) {
                     // Throw this out so UI will show this to the user as an error message.

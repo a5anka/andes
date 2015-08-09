@@ -135,7 +135,7 @@ public class MessageData {
         return numOfDeliveries;
     }
 
-    public int getNumOfDeliveires4Channel(UUID channelID) {
+    public int getNumOfDeliveries4Channel(UUID channelID) {
          /* Since sometimes Broker tries to send stored messages when it initialised a subscription
             so then it returns null value for that subscription's channel's amount of deliveries,
             Since we need to the evaluate the rules before we send message, therefore we have to ignore the null value,

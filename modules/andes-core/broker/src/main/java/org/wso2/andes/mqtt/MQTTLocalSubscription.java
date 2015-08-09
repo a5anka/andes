@@ -21,12 +21,7 @@ import org.apache.commons.lang.builder.HashCodeBuilder;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.dna.mqtt.wso2.QOSLevel;
-import org.wso2.andes.kernel.AndesContent;
-import org.wso2.andes.kernel.AndesException;
-import org.wso2.andes.kernel.AndesMessageMetadata;
-import org.wso2.andes.kernel.ConcurrentTrackingList;
-import org.wso2.andes.kernel.MessageData;
-import org.wso2.andes.kernel.OnflightMessageTracker;
+import org.wso2.andes.kernel.*;
 import org.wso2.andes.kernel.disruptor.inbound.InboundSubscriptionEvent;
 import org.wso2.andes.mqtt.utils.MQTTUtils;
 import org.wso2.andes.server.ClusterResourceHolder;
@@ -66,8 +61,8 @@ public class MQTTLocalSubscription extends InboundSubscriptionEvent {
     /**
      * Map to track messages being sent <message id, MsgData reference>
      */
-    private final ConcurrentHashMap<Long, MessageData> messageSendingTracker
-            = new ConcurrentHashMap<Long, MessageData>();
+    private final ConcurrentHashMap<Long, DeliverableAndesMetadata> messageSendingTracker
+            = new ConcurrentHashMap<Long, DeliverableAndesMetadata>();
 
     /**
      * Track messages sent as retained messages
@@ -196,7 +191,7 @@ public class MQTTLocalSubscription extends InboundSubscriptionEvent {
      * {@inheritDoc}
      */
     @Override
-    public void sendMessageToSubscriber(AndesMessageMetadata messageMetadata, AndesContent content)
+    public void sendMessageToSubscriber(DeliverableAndesMetadata messageMetadata, AndesContent content)
             throws AndesException {
 
         if(messageMetadata.isRetain()) {
@@ -218,8 +213,7 @@ public class MQTTLocalSubscription extends InboundSubscriptionEvent {
                 //For MQTT QOS 0 we do not get ack from subscriber, hence will be implicitly creating an ack
                 if (QOSLevel.AT_MOST_ONCE.getValue() == getSubscriberQOS() ||
                         QOSLevel.AT_MOST_ONCE.getValue() == messageMetadata.getQosLevel()) {
-                    mqqtServerChannel.implicitAck(getSubscribedDestination(), messageMetadata.getMessageID(),
-                            this.getStorageQueueName(), getChannelID());
+                    mqqtServerChannel.implicitAck(messageMetadata.getMessageID(), getChannelID());
                 }
             } catch (MQTTException e) {
                 //TODO: we need to remove from sending tracker if we could not send
@@ -249,33 +243,18 @@ public class MQTTLocalSubscription extends InboundSubscriptionEvent {
      * @param messageID id of the message
      * @return if message is redelivered
      */
-    private boolean addMessageToSendingTracker(long messageID) {
-
-        if (retainedMessageList.contains(messageID)) {
-            return false;
-        }
+    private void addMessageToSendingTracker(long messageID) {
 
         if (log.isDebugEnabled()) {
             log.debug("Adding message to sending tracker channel id = " + getChannelID() + " message id = "
                     + messageID);
         }
-        MessageData messageData = messageSendingTracker.get(messageID);
+        DeliverableAndesMetadata messageData = messageSendingTracker.get(messageID);
 
         if (null == messageData) {
             messageData = OnflightMessageTracker.getInstance().getTrackingData(messageID);
             messageSendingTracker.put(messageID, messageData);
         }
-        // increase delivery count
-        int numOfCurrentDeliveries = messageData.incrementDeliveryCount(getChannelID());
-
-
-        if (log.isDebugEnabled()) {
-            log.debug("Number of current deliveries for message id= " + messageID + " to Channel " + getChannelID()
-                    + " is " + numOfCurrentDeliveries);
-        }
-
-        //check if this is a redelivered message
-        return  messageData.isRedelivered(getChannelID());
     }
 
 

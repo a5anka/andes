@@ -22,7 +22,7 @@ import java.util.UUID;
 
 public interface LocalSubscription extends AndesSubscription {
 
-    public void sendMessageToSubscriber(AndesMessageMetadata messageMetadata, AndesContent content)throws AndesException;
+    public void sendMessageToSubscriber(DeliverableAndesMetadata messageMetadata, AndesContent content)throws AndesException;
 
     public boolean isActive();
 

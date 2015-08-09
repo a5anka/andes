@@ -27,11 +27,9 @@ import org.wso2.andes.common.ClientProperties;
 import org.wso2.andes.configuration.qpid.*;
 import org.wso2.andes.framing.AMQShortString;
 import org.wso2.andes.framing.FieldTable;
-import org.wso2.andes.kernel.AndesMessageMetadata;
-import org.wso2.andes.kernel.MessagingEngine;
+import org.wso2.andes.kernel.*;
 import org.wso2.andes.protocol.AMQConstant;
 import org.wso2.andes.server.AMQChannel;
-import org.wso2.andes.kernel.OnflightMessageTracker;
 import org.wso2.andes.server.filter.FilterManager;
 import org.wso2.andes.server.filter.FilterManagerFactory;
 import org.wso2.andes.server.flow.FlowCreditManager;
@@ -46,7 +44,7 @@ import org.wso2.andes.server.output.ProtocolOutputConverter;
 import org.wso2.andes.server.protocol.AMQProtocolSession;
 import org.wso2.andes.server.queue.AMQQueue;
 import org.wso2.andes.server.queue.QueueEntry;
-import org.wso2.andes.kernel.AndesUtils;
+
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -253,7 +251,7 @@ public abstract class SubscriptionImpl implements Subscription, FlowCreditManage
 
                 /**
                  * This method will record that this message is delivered in AMQChannel level
-                 * Requeueing and ack handling will be affected by this.
+                 * Re-queueing and ack handling will be affected by this.
                  */
                 recordMessageDelivery(entry, deliveryTag);
 
@@ -262,19 +260,15 @@ public abstract class SubscriptionImpl implements Subscription, FlowCreditManage
                 // when channel is available
                 if (getChannel().isClosing()) {
                     
-                    
-                    
-                    
-                    AndesMessageMetadata message = AMQPUtils
-                            .convertAMQMessageToAndesMetadata((AMQMessage) entry.getMessage(), getChannel().getId());
+                    DeliverableAndesMetadata message = OnflightMessageTracker.getInstance().getTrackingData(entry
+                            .getMessage().getMessageNumber());
 
                     if ( log.isDebugEnabled()){
                         log.debug("channel getting closed therefore, not trying to deliver : " + message.getMessageID());
                         
                     }
-
                     
-                    MessagingEngine.getInstance().messageRejected(message);
+                    MessagingEngine.getInstance().messageRejected(message, getChannel().getId());
                     return;
                 }
 

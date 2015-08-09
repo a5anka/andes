@@ -20,10 +20,9 @@ package org.wso2.andes.kernel.disruptor.inbound;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.wso2.andes.kernel.AndesException;
-import org.wso2.andes.kernel.AndesRemovableMetadata;
-import org.wso2.andes.kernel.MessagingEngine;
+import org.wso2.andes.kernel.*;
 
+import java.util.Collection;
 import java.util.List;
 
 /**
@@ -48,9 +47,14 @@ public class InboundDeleteMessagesEvent implements AndesInboundStateEvent {
     private EventType eventType;
     
     /**
+     * List of deliverable messages to remove
+     */
+    private List<DeliverableAndesMetadata> deliverableAndesMetadataList;
+
+    /**
      * List of messages to remove
      */
-    private List<AndesRemovableMetadata> messagesToRemove;
+    private Collection<AndesMessageMetadata> andesMessageMetadataList;
 
     /**
      * Whether to move deleted messages to DLC or not.
@@ -68,8 +72,18 @@ public class InboundDeleteMessagesEvent implements AndesInboundStateEvent {
      * @param messagesToRemove List<AndesRemovableMetadata>
      * @param moveToDLC whether move deleted messages to DLC
      */
-    public InboundDeleteMessagesEvent(List<AndesRemovableMetadata> messagesToRemove, boolean moveToDLC) {
-        this.messagesToRemove = messagesToRemove;
+    public InboundDeleteMessagesEvent(List<DeliverableAndesMetadata> messagesToRemove, boolean moveToDLC) {
+        this.deliverableAndesMetadataList = messagesToRemove;
+        this.moveToDLC = moveToDLC;
+    }
+
+    /**
+     * Delete messages in queues with option move to DLC
+     * @param messagesToRemove List<AndesRemovableMetadata>
+     * @param moveToDLC whether move deleted messages to DLC
+     */
+    public InboundDeleteMessagesEvent(Collection<AndesMessageMetadata> messagesToRemove, boolean moveToDLC) {
+        this.andesMessageMetadataList = messagesToRemove;
         this.moveToDLC = moveToDLC;
     }
 
@@ -80,7 +94,11 @@ public class InboundDeleteMessagesEvent implements AndesInboundStateEvent {
     public void updateState() throws AndesException {
         switch (eventType) {
             case DELETE_MESSAGES_EVENT:
-                messagingEngine.deleteMessages(messagesToRemove, moveToDLC);
+                if(!deliverableAndesMetadataList.isEmpty()) {
+                    messagingEngine.deleteMessages(deliverableAndesMetadataList, moveToDLC);
+                } else {
+                    messagingEngine.deleteMessages(andesMessageMetadataList, moveToDLC);
+                }
                 break;
             default:
                 log.error("Event type not set properly " + eventType);

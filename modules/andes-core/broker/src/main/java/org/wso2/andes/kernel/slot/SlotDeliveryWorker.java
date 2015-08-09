@@ -21,13 +21,7 @@ package org.wso2.andes.kernel.slot;
 import com.google.common.util.concurrent.SettableFuture;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.wso2.andes.kernel.AndesContext;
-import org.wso2.andes.kernel.AndesException;
-import org.wso2.andes.kernel.AndesMessageMetadata;
-import org.wso2.andes.kernel.LocalSubscription;
-import org.wso2.andes.kernel.MessageFlusher;
-import org.wso2.andes.kernel.MessagingEngine;
-import org.wso2.andes.kernel.OnflightMessageTracker;
+import org.wso2.andes.kernel.*;
 import org.wso2.andes.store.FailureObservingStoreManager;
 import org.wso2.andes.store.HealthAwareStore;
 import org.wso2.andes.store.StoreHealthListener;
@@ -156,8 +150,7 @@ public class SlotDeliveryWorker extends Thread implements StoreHealthListener{
                                             " - " + currentSlot.getEndMessageId() +
                                             "Thread Id:" + Thread.currentThread().getId());
                                 }
-                                List<AndesMessageMetadata> messagesRead =
-                                                                          getMetaDataListBySlot(storageQueueName,
+                                List<DeliverableAndesMetadata> messagesRead = getMetaDataListBySlot(storageQueueName,
                                                                                                 currentSlot);
 
 
@@ -241,7 +234,7 @@ public class SlotDeliveryWorker extends Thread implements StoreHealthListener{
      * @return a list of {@link AndesMessageMetadata}
      * @throws AndesException an exception if there are errors at message store level.
      */
-    private List<AndesMessageMetadata> getMetaDataListBySlot(String storageQueueName, 
+    private List<DeliverableAndesMetadata> getMetaDataListBySlot(String storageQueueName,
                                                              Slot slot) throws AndesException {
         return getMetadataListBySlot(storageQueueName, slot, 0);
     }
@@ -254,11 +247,11 @@ public class SlotDeliveryWorker extends Thread implements StoreHealthListener{
      * @return return a list of {@link org.wso2.andes.kernel.AndesMessageMetadata}
      * @throws AndesException
      */
-    private List<AndesMessageMetadata> getMetadataListBySlot(String storageQueueName,
+    private List<DeliverableAndesMetadata> getMetadataListBySlot(String storageQueueName,
                                                              Slot slot,
                                                              int numberOfRetriesBefore) throws AndesException {
 
-        List<AndesMessageMetadata> messagesRead;
+        List<DeliverableAndesMetadata> messagesRead;
                
         if ( messageStoresUnavailable != null){
             try {
@@ -281,13 +274,12 @@ public class SlotDeliveryWorker extends Thread implements StoreHealthListener{
             long firstMsgId = slot.getStartMessageId();
             long lastMsgId = slot.getEndMessageId();
             //Read messages in the slot
-            messagesRead =
-                    MessagingEngine.getInstance().getMetaDataList(
+            messagesRead = MessagingEngine.getInstance().getMetaDataList(slot,
                             storageQueueName, firstMsgId, lastMsgId);
             
             if (log.isDebugEnabled()) {
                 StringBuilder messageIDString = new StringBuilder();
-                for (AndesMessageMetadata metadata : messagesRead) {
+                for (DeliverableAndesMetadata metadata : messagesRead) {
                     messageIDString.append(metadata.getMessageID()).append(" , ");
                 }
                 log.debug("Messages Read: " + messageIDString);

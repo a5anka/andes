@@ -83,8 +83,8 @@ public class AMQPLocalSubscription extends InboundSubscriptionEvent {
     /**
      * Map to track messages being sent <message id, MsgData reference>
      */
-    private final ConcurrentHashMap<Long, MessageData> messageSendingTracker
-            = new ConcurrentHashMap<Long, MessageData>();
+    private final ConcurrentHashMap<Long, DeliverableAndesMetadata> messageSendingTracker
+            = new ConcurrentHashMap<Long, DeliverableAndesMetadata>();
 
     public AMQPLocalSubscription(AMQQueue amqQueue, Subscription amqpSubscription, String subscriptionID, String destination,
                                  boolean isBoundToTopic, boolean isExclusive, boolean isDurable,
@@ -183,7 +183,7 @@ public class AMQPLocalSubscription extends InboundSubscriptionEvent {
      * {@inheritDoc}
      */
     @Override
-    public void sendMessageToSubscriber(AndesMessageMetadata messageMetadata, AndesContent content)
+    public void sendMessageToSubscriber(DeliverableAndesMetadata messageMetadata, AndesContent content)
             throws AndesException {
         AMQMessage message = AMQPUtils.getAMQMessageForDelivery(messageMetadata, content);
         sendAMQMessageToSubscriber(message);
@@ -197,15 +197,13 @@ public class AMQPLocalSubscription extends InboundSubscriptionEvent {
      */
     private void sendAMQMessageToSubscriber(AMQMessage message) throws AndesException {
         QueueEntry messageToSend = AMQPUtils.convertAMQMessageToQueueEntry(message, amqQueue);
-
+        DeliverableAndesMetadata andesMessageMetadata = OnflightMessageTracker.getInstance().getTrackingData(message
+                .getMessageId());
         if (evaluateDeliveryRules(messageToSend)) {
-
-            onflightMessageTracker.setMessageStatus(MessageStatus.DELIVERY_OK, message.getMessageId());
-
+            andesMessageMetadata.markDeliveryRuleEvaluation(getChannelID(), true);
             sendQueueEntryToSubscriber(messageToSend);
         } else {
-            //Set message status to reject
-            onflightMessageTracker.setMessageStatus(MessageStatus.DELIVERY_REJECT, message.getMessageId());
+            andesMessageMetadata.markDeliveryRuleEvaluation(getChannelID(), false);
             /**
              * Message tracker rejected this message from sending. Hence moving
              * to dead letter channel
@@ -251,36 +249,22 @@ public class AMQPLocalSubscription extends InboundSubscriptionEvent {
 
 
     /**
-     * Stamp a message as sent. This method also evaluate if the
-     * message is being redelivered
-     *
-     * @param messageID id of the message
-     * @return if message is redelivered
+     * Add message to sending tracker which keeps messages delivered to this channel
+     * @param messageID ID of the message to add
      */
-    private boolean addMessageToSendingTracker(long messageID) {
+    private void addMessageToSendingTracker(long messageID) {
 
         if (log.isDebugEnabled()) {
             log.debug("Adding message to sending tracker channel id = " + getChannelID() + " message id = "
                     + messageID);
         }
 
-        MessageData messageData = messageSendingTracker.get(messageID);
+        DeliverableAndesMetadata messageData = messageSendingTracker.get(messageID);
 
         if (null == messageData) {
             messageData = OnflightMessageTracker.getInstance().getTrackingData(messageID);
             messageSendingTracker.put(messageID, messageData);
         }
-        // increase delivery count
-        int numOfCurrentDeliveries = messageData.incrementDeliveryCount(getChannelID());
-
-
-        if (log.isDebugEnabled()) {
-            log.debug("Number of current deliveries for message id= " + messageID + " to Channel " + getChannelID()
-                    + " is " + numOfCurrentDeliveries);
-        }
-
-        //check if this is a redelivered message
-        return  messageData.isRedelivered(getChannelID());
     }
 
     /**
@@ -302,14 +286,9 @@ public class AMQPLocalSubscription extends InboundSubscriptionEvent {
 
         try {
 
-            //record message as sent to this subscriber (channel)
-            boolean isRedelivery = addMessageToSendingTracker(messageNumber);
-            //set redelivery header
+            boolean isRedelivery =  messageSendingTracker.get(messageNumber).isRedelivered(getChannelID());
             if(isRedelivery) {
                 queueEntry.setRedelivered();
-                onflightMessageTracker.setMessageStatus(MessageStatus.RESENT, messageNumber);
-            } else {
-                onflightMessageTracker.setMessageStatus(MessageStatus.SENT, messageNumber);
             }
             unAckedMsgCount.incrementAndGet();
 

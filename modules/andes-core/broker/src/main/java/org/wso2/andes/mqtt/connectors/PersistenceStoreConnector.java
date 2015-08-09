@@ -21,14 +21,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.dna.mqtt.wso2.QOSLevel;
 import org.wso2.andes.amqp.AMQPUtils;
-import org.wso2.andes.kernel.Andes;
-import org.wso2.andes.kernel.AndesAckData;
-import org.wso2.andes.kernel.AndesChannel;
-import org.wso2.andes.kernel.AndesException;
-import org.wso2.andes.kernel.AndesMessage;
-import org.wso2.andes.kernel.AndesMessageMetadata;
-import org.wso2.andes.kernel.AndesMessagePart;
-import org.wso2.andes.kernel.SubscriptionAlreadyExistsException;
+import org.wso2.andes.kernel.*;
 import org.wso2.andes.kernel.disruptor.inbound.InboundQueueEvent;
 import org.wso2.andes.mqtt.MQTTException;
 import org.wso2.andes.mqtt.MQTTLocalSubscription;
@@ -67,18 +60,18 @@ public class PersistenceStoreConnector implements MQTTConnector {
     /**
      * {@inheritDoc}
      */
-    public void messageAck(long messageID, String topicName, String storageName, UUID subChannelID)
+    public void messageAck(long messageID, UUID channelID)
             throws AndesException {
-        AndesAckData andesAckData = new AndesAckData(subChannelID, messageID,
-                topicName, storageName, true);
+        DeliverableAndesMetadata metadata = OnflightMessageTracker.getInstance().getTrackingData(messageID);
+        AndesAckData andesAckData = new AndesAckData(channelID, metadata);
         Andes.getInstance().ackReceived(andesAckData);
     }
 
     /**
      * {@inheritDoc}
      */
-    public void messageNack(AndesMessageMetadata metadata) throws AndesException{
-        Andes.getInstance().messageRejected(metadata);
+    public void messageNack(DeliverableAndesMetadata metadata, UUID channelID) throws AndesException{
+        Andes.getInstance().messageRejected(metadata, channelID);
     }
 
     /**

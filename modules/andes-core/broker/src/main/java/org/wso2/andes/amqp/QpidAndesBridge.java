@@ -82,7 +82,7 @@ public class QpidAndesBridge {
      * This should happen after all content chunks are received
      *
      * @param incomingMessage  message coming in
-     * @param channelID        id of the channel
+     * @param channelID        id of the channel message came in
      * @param andesChannel     AndesChannel
      * @param transactionEvent not null if this is a message in a transaction, null otherwise
      * @throws AMQException
@@ -93,7 +93,7 @@ public class QpidAndesBridge {
         long receivedTime = System.currentTimeMillis();
         try {
             if (log.isDebugEnabled()) {
-                log.debug("Message id " + incomingMessage.getMessageNumber() + " received");
+                log.debug("Message id " + incomingMessage.getMessageNumber() + " received from channel " + channelID);
             }
             AMQMessage message = new AMQMessage(incomingMessage.getStoredMessage());
 
@@ -101,7 +101,7 @@ public class QpidAndesBridge {
             // message published time by publisher.
             message.getMessageMetaData().setArrivalTime(receivedTime);
 
-            AndesMessageMetadata metadata = AMQPUtils.convertAMQMessageToAndesMetadata(message, channelID);
+            AndesMessageMetadata metadata = AMQPUtils.convertAMQMessageToAndesMetadata(message);
             String queue = message.getRoutingKey();
 
             if (queue == null) {
@@ -223,24 +223,33 @@ public class QpidAndesBridge {
                         + routingKey);
                 return;
             }
+
             //This can be different from routing key in hierarchical topic case
-            String subscriptionBoundDestination = ackSentSubscription.getSubscribedDestination();
-            String storageQueueNameOfSubscription = ackSentSubscription.getStorageQueueName();
-            AndesAckData andesAckData = AMQPUtils
-                    .generateAndesAckMessage(channelID, messageID, subscriptionBoundDestination,
-                            storageQueueNameOfSubscription, isTopic);
+            AndesAckData andesAckData = AMQPUtils.generateAndesAckMessage(channelID, messageID);
             Andes.getInstance().ackReceived(andesAckData);
+
         } catch (AndesException e) {
             log.error("Exception occurred while handling ack", e);
             throw new AMQException(AMQConstant.INTERNAL_ERROR, "Error in getting handling ack for " + messageID, e);
         }
     }
 
+    /**
+     * Reject message is received
+     * @param message message subjected to rejection
+     * @param channel channel by which reject message is received
+     * @throws AMQException
+     */
     public static void rejectMessage(AMQMessage message, AMQChannel channel) throws AMQException {
         try {
-            AndesMessageMetadata rejectedMessage = AMQPUtils.convertAMQMessageToAndesMetadata(message, channel.getId());
-            log.debug("AMQP BRIDGE: rejected message id= " + rejectedMessage.getMessageID() + " channel = " + rejectedMessage.getChannelId());
-            MessagingEngine.getInstance().messageRejected(rejectedMessage);
+            DeliverableAndesMetadata rejectedMessage = OnflightMessageTracker.getInstance().getTrackingData(message
+                    .getMessageId());
+
+            log.debug("AMQP BRIDGE: rejected message id= " + rejectedMessage.getMessageID()
+                    + " channel = " + channel.getId());
+
+            MessagingEngine.getInstance().messageRejected(rejectedMessage, channel.getId());
+
         } catch (AndesException e) {
             throw new AMQException(AMQConstant.INTERNAL_ERROR, "Error while handling rejected message", e);
         }

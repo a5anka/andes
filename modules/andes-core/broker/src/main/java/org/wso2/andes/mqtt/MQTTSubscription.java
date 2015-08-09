@@ -20,6 +20,8 @@ package org.wso2.andes.mqtt;
 
 import org.dna.mqtt.wso2.QOSLevel;
 import org.wso2.andes.kernel.AndesMessageMetadata;
+import org.wso2.andes.kernel.DeliverableAndesMetadata;
+
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -81,7 +83,7 @@ public class MQTTSubscription {
      * @param mid              a locally generated id for the subscriber
      * @param metaInfo         holds message information relevant to the message
      */
-    public void markSent(long clusterMessageID, int mid, AndesMessageMetadata metaInfo) {
+    public void markSent(long clusterMessageID, int mid, DeliverableAndesMetadata metaInfo) {
         localMessageToClusterMessage.put(mid, clusterMessageID);
 
         MQTTSubscriptionInformation subscriptionInfo = new MQTTSubscriptionInformation();
@@ -130,7 +132,7 @@ public class MQTTSubscription {
      * @param localID the local message id generated before dispatching the message to its subscriptions
      * @return the meta information relevant for the message
      */
-    public AndesMessageMetadata getMessageMetaInformation(Integer localID){
+    public DeliverableAndesMetadata getMessageMetaInformation(Integer localID){
         long clusterID = localMessageToClusterMessage.get(localID);
 
         MQTTSubscriptionInformation mqttSubscriptionInformation = clusterMessageToMessageInformation.get(clusterID);

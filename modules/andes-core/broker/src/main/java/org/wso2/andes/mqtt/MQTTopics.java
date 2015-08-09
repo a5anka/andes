@@ -22,6 +22,8 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.dna.mqtt.wso2.QOSLevel;
 import org.wso2.andes.kernel.AndesMessageMetadata;
+import org.wso2.andes.kernel.DeliverableAndesMetadata;
+
 import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.Map;
@@ -218,7 +220,7 @@ public class MQTTopics {
      * @throws org.wso2.andes.mqtt.MQTTException
      */
     public int addOnFlightMessage(String topic, String storageQueueIdentifier, long clusterMessageID,
-                                  AndesMessageMetadata metadata) throws MQTTException {
+                                  DeliverableAndesMetadata metadata) throws MQTTException {
 
         MQTTSubscription subscription = subscriptions.get(topic);
 
@@ -233,8 +235,7 @@ public class MQTTopics {
                 //Here a new message id will be generated
                 messageID = getNextMessageID();
             }
-            //Will set the meat info
-            metadata.setChannelId(subscription.getSubscriptionChannel());
+
             //Sets the storage queue identifier of the subscription
             subscription.setStorageIdentifier(storageQueueIdentifier);
             //Indicates that the message was dispatched for the distribution

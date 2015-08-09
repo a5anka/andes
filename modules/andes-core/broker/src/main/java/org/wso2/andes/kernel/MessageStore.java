@@ -19,6 +19,7 @@
 package org.wso2.andes.kernel;
 
 import org.wso2.andes.configuration.util.ConfigurationProperties;
+import org.wso2.andes.kernel.slot.Slot;
 import org.wso2.andes.store.HealthAwareStore;
 
 import java.util.List;
@@ -133,11 +134,11 @@ public interface MessageStore extends HealthAwareStore{
     /**
      * Method to move a list of messages to a specified dead letter channel
      *
-     * @param messageIds   the list of message ids to move
+     * @param messages   the list of messages to move
      * @param dlcQueueName the dead letter channel queue name for the message to be moved
      * @throws AndesException
      */
-    public void moveMetadataToDLC(List<Long> messageIds, String dlcQueueName) throws AndesException;
+    public void moveMetadataToDLC(List<AndesMessageMetadata> messages, String dlcQueueName) throws AndesException;
 
     /**
      * Update the meta data for the given message with the given information in the AndesMetaData. Update destination
@@ -168,7 +169,7 @@ public interface MessageStore extends HealthAwareStore{
      * @return list of metadata
      * @throws AndesException
      */
-    public List<AndesMessageMetadata> getMetadataList(final String storageQueueName, long firstMsgId,
+    public List<DeliverableAndesMetadata> getMetadataList(Slot slot, final String storageQueueName, long firstMsgId,
                                                       long lastMsgID) throws AndesException;
 
     /**
@@ -217,7 +218,7 @@ public interface MessageStore extends HealthAwareStore{
      * @param messagesToRemove messages to remove
      * @throws AndesException
      */
-    public void deleteMessageMetadataFromQueue(final String storageQueueName, List<Long> messagesToRemove)
+    public void deleteMessageMetadataFromQueue(final String storageQueueName, List<AndesMessageMetadata> messagesToRemove)
             throws AndesException;
 
     /**
@@ -232,7 +233,7 @@ public interface MessageStore extends HealthAwareStore{
      * @param deleteAllMetaData whether to delete all metadata destined to the storageQueue
      * @throws AndesException
      */
-    public void deleteMessages(final String storageQueueName, List<Long> messagesToRemove, boolean deleteAllMetaData)
+    public void deleteMessages(final String storageQueueName, List<AndesMessageMetadata> messagesToRemove, boolean deleteAllMetaData)
             throws AndesException;
 
     /**
@@ -242,7 +243,7 @@ public interface MessageStore extends HealthAwareStore{
      * @return AndesRemovableMetadata
      * @throws AndesException
      */
-    public List<AndesRemovableMetadata> getExpiredMessages(int limit) throws AndesException;
+    public List<AndesMessageMetadata> getExpiredMessages(int limit) throws AndesException;
 
     /**
      * delete messages from expiry queue
@@ -396,7 +397,7 @@ public interface MessageStore extends HealthAwareStore{
      * @return AndesMessageMetadata
      * @throws AndesException
      */
-    public AndesMessageMetadata getRetainedMetadata(String destination) throws AndesException;
+    public DeliverableAndesMetadata getRetainedMetadata(String destination) throws AndesException;
 
     /**
      * close the message store

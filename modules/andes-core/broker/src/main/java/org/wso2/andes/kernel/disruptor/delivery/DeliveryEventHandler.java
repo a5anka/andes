@@ -20,13 +20,7 @@ package org.wso2.andes.kernel.disruptor.delivery;
 
 import com.lmax.disruptor.EventHandler;
 import org.apache.log4j.Logger;
-import org.wso2.andes.kernel.Andes;
-import org.wso2.andes.kernel.AndesException;
-import org.wso2.andes.kernel.AndesMessageMetadata;
-import org.wso2.andes.kernel.AndesRemovableMetadata;
-import org.wso2.andes.kernel.LocalSubscription;
-import org.wso2.andes.kernel.MessageFlusher;
-import org.wso2.andes.kernel.OnflightMessageTracker;
+import org.wso2.andes.kernel.*;
 import org.wso2.andes.metrics.MetricsConstants;
 import org.wso2.andes.tools.utils.MessageTracer;
 import org.wso2.carbon.metrics.manager.Level;
@@ -80,7 +74,7 @@ public class DeliveryEventHandler implements EventHandler<DeliveryEventData> {
 
         // Filter tasks assigned to this handler
         if (channelModulus == ordinal) {
-            AndesMessageMetadata message = deliveryEventData.getMetadata();
+            DeliverableAndesMetadata message = deliveryEventData.getMetadata();
 
             try {
                 if (deliveryEventData.isErrorOccurred()) {
@@ -89,6 +83,9 @@ public class DeliveryEventHandler implements EventHandler<DeliveryEventData> {
                 }
                 if (subscription.isActive()) {
                     subscription.sendMessageToSubscriber(message, deliveryEventData.getAndesContent());
+
+                    //Mark the message as sent to the subscriber
+                    message.markAsDeliveredToChannel(subscription.getChannelID());
 
                     //Tracing Message
                     MessageTracer.trace(message, MessageTracer.DISPATCHED_TO_PROTOCOL);
@@ -104,13 +101,12 @@ public class DeliveryEventHandler implements EventHandler<DeliveryEventData> {
                     } else {
                         message.setDestination(subscription.getSubscribedDestination());
                     }
-                    MessageFlusher.getInstance().reQueueUndeliveredMessagesDueToInactiveSubscriptions(message);
+                    MessagingEngine.getInstance().reQueueMessage(message, subscription);
                 }
             } catch (Throwable e) {
                 log.error("Error while delivering message. Message id " + message.getMessageID(), e);
                 handleSendError(message);
             } finally {
-                OnflightMessageTracker.getInstance().decrementNumberOfScheduledDeliveries(message.getMessageID());
                 deliveryEventData.clearData();
             }
         }
@@ -122,16 +118,14 @@ public class DeliveryEventHandler implements EventHandler<DeliveryEventData> {
      * @param message
      *         Meta data for the message
      */
-    private void handleSendError(AndesMessageMetadata message) {
+    private void handleSendError(DeliverableAndesMetadata message) {
         // If message is a queue message we move the message to the Dead Letter Channel
         // since topics doesn't have a Dead Letter Channel
         if (!message.isTopic()) {
-            log.info("Moving message to Dead Letter Channel. Message ID " + message.getMessageID());
-            AndesRemovableMetadata removableMessage = new AndesRemovableMetadata(message.getMessageID(),
-                                                                                 message.getDestination(),
-                                                                                 message.getStorageQueueName());
-            List<AndesRemovableMetadata> messageToMoveToDLC = new ArrayList<AndesRemovableMetadata>();
-            messageToMoveToDLC.add(removableMessage);
+            log.info("Moving message to Dead Letter Channel Due to Send Error. Message ID " + message.getMessageID());
+            List<DeliverableAndesMetadata> messageToMoveToDLC = new ArrayList<>();
+            messageToMoveToDLC.add(message);
+
             try {
                 Andes.getInstance().deleteMessages(messageToMoveToDLC, true);
             } catch (AndesException dlcException) {
@@ -141,6 +135,8 @@ public class DeliveryEventHandler implements EventHandler<DeliveryEventData> {
                 // inconsistency
                 log.error("Error moving message " + message.getMessageID() + " to dead letter channel.", dlcException);
             }
+        } else {
+            //TODO: do we need to reschedule message for topic?
         }
     }
 }

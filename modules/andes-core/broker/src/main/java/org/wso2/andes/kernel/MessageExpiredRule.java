@@ -25,16 +25,8 @@ import org.wso2.andes.server.queue.QueueEntry;
  * This class represents message expiration Delivery Rule
  */
 public class MessageExpiredRule implements DeliveryRule {
+
     private static Log log = LogFactory.getLog(MessageExpiredRule.class);
-
-    /**
-     * Used to get message information
-     */
-    private OnflightMessageTracker onflightMessageTracker;
-
-    public MessageExpiredRule() {
-        onflightMessageTracker = OnflightMessageTracker.getInstance();
-    }
 
     /**
      * Evaluating the message expiration delivery rule
@@ -44,8 +36,9 @@ public class MessageExpiredRule implements DeliveryRule {
     @Override
     public boolean evaluate(QueueEntry message) {
         long messageID = message.getMessage().getMessageNumber();
+        DeliverableAndesMetadata andesMetadata = OnflightMessageTracker.getInstance().getTrackingData(messageID);
         //Check if destination entry has expired. Any expired message will not be delivered
-        if (onflightMessageTracker.isMsgExpired(messageID)) {
+        if (andesMetadata.isExpired()) {
             log.warn("Message is expired. Routing Message to DLC : id= " + messageID);
             return false;
         } else {

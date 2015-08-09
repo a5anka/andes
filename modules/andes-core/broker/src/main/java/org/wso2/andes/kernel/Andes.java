@@ -32,6 +32,7 @@ import org.wso2.andes.kernel.disruptor.inbound.InboundQueueEvent;
 import org.wso2.andes.kernel.disruptor.inbound.InboundSubscriptionEvent;
 import org.wso2.andes.kernel.disruptor.inbound.InboundTransactionEvent;
 import org.wso2.andes.kernel.disruptor.inbound.PubAckHandler;
+import org.wso2.andes.kernel.slot.Slot;
 import org.wso2.andes.metrics.MetricsConstants;
 import org.wso2.andes.subscription.SubscriptionStore;
 import org.wso2.andes.tools.utils.MessageTracer;
@@ -39,6 +40,7 @@ import org.wso2.carbon.metrics.manager.Level;
 import org.wso2.carbon.metrics.manager.Meter;
 import org.wso2.carbon.metrics.manager.MetricManager;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -183,8 +185,8 @@ public class Andes {
         inboundEventManager.ackReceived(ackData);
 
         //Tracing Message
-        MessageTracer.trace(ackData.getMessageID(), ackData.getDestination(),
-                            MessageTracer.ACK_RECEIVED_FROM_PROTOCOL);
+        MessageTracer.trace(ackData.getAcknowledgedMessage().getMessageID(), ackData.getAcknowledgedMessage()
+                        .getDestination(), MessageTracer.ACK_RECEIVED_FROM_PROTOCOL);
 
         //Adding metrics meter for ack rate
         Meter ackMeter = MetricManager.meter(Level.INFO, MetricsConstants.ACK_RECEIVE_RATE);
@@ -312,16 +314,30 @@ public class Andes {
     }
 
     /**
-     * Delete messages from store. Optionally move to dead letter channel
+     * Schedule to delete messages from store. Optionally move to dead letter channel
      *
      * @param messagesToRemove        List of messages to remove
      * @param moveToDeadLetterChannel if to move to DLC
      * @throws AndesException
      */
-    public void deleteMessages(List<AndesRemovableMetadata> messagesToRemove, boolean moveToDeadLetterChannel)
+    public void deleteMessages(List<DeliverableAndesMetadata> messagesToRemove, boolean moveToDeadLetterChannel)
             throws AndesException {
         InboundDeleteMessagesEvent deleteMessagesEvent = new InboundDeleteMessagesEvent(
-                messagesToRemove,moveToDeadLetterChannel);
+                messagesToRemove, moveToDeadLetterChannel);
+        deleteMessagesEvent.prepareForDelete(messagingEngine);
+        inboundEventManager.publishStateEvent(deleteMessagesEvent);
+    }
+
+    /**
+     * Schedule to delete messages from store. Optionally move to dead letter channel. Here if the message
+     * is still tracked in message delivery path, message states will be updated accordingly.
+     * @param messagesToRemove Collection of messages to remove
+     * @param moveToDeadLetterChannel if to move to DLc
+     */
+    public void deleteMessages(Collection<AndesMessageMetadata> messagesToRemove, boolean moveToDeadLetterChannel)
+            throws AndesException {
+        InboundDeleteMessagesEvent deleteMessagesEvent = new InboundDeleteMessagesEvent(
+                messagesToRemove, moveToDeadLetterChannel);
         deleteMessagesEvent.prepareForDelete(messagingEngine);
         inboundEventManager.publishStateEvent(deleteMessagesEvent);
     }
@@ -373,11 +389,12 @@ public class Andes {
     /**
      * Message is rejected
      *
-     * @param metadata message that is rejected. It must bare id of channel reject came from
+     * @param metadata message that is rejected.
+     * @param channelID ID of the connection channel reject is received
      * @throws AndesException
      */
-    public void messageRejected(AndesMessageMetadata metadata) throws AndesException {
-        MessagingEngine.getInstance().messageRejected(metadata);
+    public void messageRejected(DeliverableAndesMetadata metadata, UUID channelID) throws AndesException {
+        MessagingEngine.getInstance().messageRejected(metadata, channelID);
     }
 
     /**
@@ -400,7 +417,7 @@ public class Andes {
      * @param subscription    subscription to send
      * @throws AndesException
      */
-    public void reQueueMessage(AndesMessageMetadata messageMetadata, LocalSubscription subscription) throws AndesException {
+    public void reQueueMessage(DeliverableAndesMetadata messageMetadata, LocalSubscription subscription) throws AndesException {
         MessagingEngine.getInstance().reQueueMessage(messageMetadata, subscription);
     }
 
@@ -492,9 +509,10 @@ public class Andes {
      * @return List of message metadata
      * @throws AndesException
      */
-    public List<AndesMessageMetadata> getMetaDataList(final String queueName, long firstMsgId, long lastMsgID)
+    public List<DeliverableAndesMetadata> getMetaDataList(Slot slot, final String queueName, long firstMsgId, long
+            lastMsgID)
             throws AndesException {
-        return MessagingEngine.getInstance().getMetaDataList(queueName, firstMsgId, lastMsgID);
+        return MessagingEngine.getInstance().getMetaDataList(slot, queueName, firstMsgId, lastMsgID);
     }
 
     /**
@@ -548,7 +566,7 @@ public class Andes {
      * @return AndesRemovableMetadata
      * @throws AndesException
      */
-    public List<AndesRemovableMetadata> getExpiredMessages(int limit) throws AndesException {
+    public List<AndesMessageMetadata> getExpiredMessages(int limit) throws AndesException {
         return MessagingEngine.getInstance().getExpiredMessages(limit);
     }
 

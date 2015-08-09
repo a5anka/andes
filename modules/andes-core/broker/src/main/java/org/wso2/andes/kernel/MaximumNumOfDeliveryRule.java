@@ -59,8 +59,9 @@ public class MaximumNumOfDeliveryRule implements DeliveryRule {
     public boolean evaluate(QueueEntry message) throws AndesException {
         long messageID = message.getMessage().getMessageNumber();
         //Check if number of redelivery tries has breached.
-        Integer numOfDeliveriesOfCurrentMsg = onflightMessageTracker.getNumOfMsgDeliveriesForChannel(messageID,
-                                                                                                     amqChannelID);
+        DeliverableAndesMetadata andesMetadata = OnflightMessageTracker.getInstance().getTrackingData(messageID);
+        int numOfDeliveriesOfCurrentMsg = andesMetadata.getNumOfDeliveries4Channel(amqChannelID);
+
         if (numOfDeliveriesOfCurrentMsg > maximumRedeliveryTimes) {
             log.warn("Number of Maximum Redelivery Tries Has Breached. Routing Message to DLC : id= " + messageID);
             return false;

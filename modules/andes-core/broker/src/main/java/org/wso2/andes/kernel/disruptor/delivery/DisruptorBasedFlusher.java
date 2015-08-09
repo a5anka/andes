@@ -27,7 +27,9 @@ import com.lmax.disruptor.dsl.ProducerType;
 import org.wso2.andes.configuration.AndesConfigurationManager;
 import org.wso2.andes.configuration.enums.AndesConfiguration;
 import org.wso2.andes.kernel.AndesMessageMetadata;
+import org.wso2.andes.kernel.DeliverableAndesMetadata;
 import org.wso2.andes.kernel.LocalSubscription;
+import org.wso2.andes.kernel.MessageStatus;
 import org.wso2.andes.metrics.MetricsConstants;
 import org.wso2.andes.tools.utils.MessageTracer;
 import org.wso2.carbon.metrics.manager.Gauge;
@@ -115,7 +117,7 @@ public class DisruptorBasedFlusher {
      * @param metadata
      *         Message metadata
      */
-    public void submit(LocalSubscription subscription, AndesMessageMetadata metadata) {
+    public void submit(LocalSubscription subscription, DeliverableAndesMetadata metadata) {
 
         //Tracing Message
         MessageTracer.trace(metadata, MessageTracer.PUBLISHED_TO_OUTBOUND_DISRUPTOR);

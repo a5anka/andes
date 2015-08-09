@@ -25,14 +25,11 @@ import org.wso2.andes.amqp.AMQPUtils;
 import org.wso2.andes.mqtt.MQTTMessageMetaData;
 import org.wso2.andes.mqtt.MQTTMetaDataHandler;
 import org.wso2.andes.server.message.MessageMetaData;
-import org.wso2.andes.kernel.slot.Slot;
 import org.wso2.andes.server.store.MessageMetaDataType;
 import org.wso2.andes.server.store.StorableMessageMetaData;
-
 import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.UUID;
 
 public class AndesMessageMetadata implements Comparable<AndesMessageMetadata> {
 
@@ -57,12 +54,6 @@ public class AndesMessageMetadata implements Comparable<AndesMessageMetadata> {
      * The timestamp at which the message arrived at the first gates of the broker.
      */
     long arrivalTime;
-
-    /**
-     * through which connection this message came into broker
-     * or rejected to the broker
-     */
-    UUID channelId;
 
     /**
      * Destination (routing key) of message
@@ -91,11 +82,6 @@ public class AndesMessageMetadata implements Comparable<AndesMessageMetadata> {
      */
     private int messageContentLength;
     private int qosLevel;
-
-    /**
-     * slotID which this metadata belongs
-     */
-    private Slot slot;
 
     /**
      * The meta data type which specify which protocol this meta data belongs to``
@@ -129,7 +115,7 @@ public class AndesMessageMetadata implements Comparable<AndesMessageMetadata> {
     private boolean retain;
 
     public AndesMessageMetadata() {
-        propertyMap = new HashMap<String, Object>();
+        propertyMap = new HashMap<>();
         this.retain = false;
     }
 
@@ -145,7 +131,7 @@ public class AndesMessageMetadata implements Comparable<AndesMessageMetadata> {
 
     public AndesMessageMetadata(long messageID, byte[] metadata, boolean parse) {
         super();
-        propertyMap = new HashMap<String, Object>();
+        propertyMap = new HashMap<>();
         this.messageID = messageID;
         this.metadata = metadata;
         if (parse) {
@@ -238,14 +224,6 @@ public class AndesMessageMetadata implements Comparable<AndesMessageMetadata> {
         isPersistent = persistent;
     }
 
-    public UUID getChannelId() {
-        return channelId;
-    }
-
-    public void setChannelId(UUID channelId) {
-        this.channelId = channelId;
-    }
-
     public long getArrivalTime() {
         return arrivalTime;
     }
@@ -265,13 +243,11 @@ public class AndesMessageMetadata implements Comparable<AndesMessageMetadata> {
         clone.messageID = messageId;
         clone.retain = retain;
         clone.metadata = metadata;
-        clone.channelId = channelId;
         clone.expirationTime = expirationTime;
         clone.isTopic = isTopic;
         clone.destination = destination;
         clone.storageQueueName = storageQueueName;
         clone.isPersistent = isPersistent;
-        clone.slot = slot;
         clone.arrivalTime = arrivalTime;
         clone.metaDataType = metaDataType;
         clone.propertyMap = propertyMap;
@@ -398,14 +374,6 @@ public class AndesMessageMetadata implements Comparable<AndesMessageMetadata> {
 
     public void setMessageContentLength(int messageContentLength) {
         this.messageContentLength = messageContentLength;
-    }
-
-    public Slot getSlot() {
-        return slot;
-    }
-
-    public void setSlot(Slot slot) {
-        this.slot = slot;
     }
 
     @Override

@@ -45,15 +45,21 @@ public class MessagePurgeRule implements DeliveryRule {
     @Override
     public boolean evaluate(QueueEntry message) throws AndesException {
         long messageID = message.getMessage().getMessageNumber();
+        DeliverableAndesMetadata andesMetadata = OnflightMessageTracker.getInstance().getTrackingData(messageID);
         // Get last purged timestamp of the destination queue.
         long lastPurgedTimestampOfQueue =
-                MessageFlusher.getInstance().getMessageDeliveryInfo(onflightMessageTracker.getMsgDestination(messageID))
-                              .getLastPurgedTimestamp();
-        if (onflightMessageTracker.getMsgArrivalTime(messageID) <= lastPurgedTimestampOfQueue) {
-            log.warn("Message was sent at " + onflightMessageTracker.getMsgArrivalTime(messageID) +
-                     " before last purge event at " + lastPurgedTimestampOfQueue + ". Therefore, it will not be sent. id= " +
-                     messageID);
-            onflightMessageTracker.setMessageStatus(MessageStatus.PURGED, messageID);
+                MessageFlusher.getInstance().getMessageDeliveryInfo(andesMetadata.getDestination())
+                        .getLastPurgedTimestamp();
+
+        if (andesMetadata.getArrivalTime() <= lastPurgedTimestampOfQueue) {
+
+            log.warn("Message was sent at " + andesMetadata.getArrivalTime()
+                    + " before last purge event at " + lastPurgedTimestampOfQueue
+                    + ". Therefore, it will not be sent. id= "
+                    + messageID);
+            if(!andesMetadata.isPurgedOrDeletedOrExpired()) {
+                andesMetadata.markAsPurgedMessage();
+            }
             return false;
         } else {
             return true;

@@ -25,12 +25,7 @@ import org.apache.commons.logging.LogFactory;
 import org.wso2.andes.kernel.slot.Slot;
 import org.wso2.andes.kernel.slot.SlotDeliveryWorker;
 import org.wso2.andes.kernel.slot.SlotDeliveryWorkerManager;
-
 import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -62,20 +57,14 @@ public class OnflightMessageTracker {
     /**
      * In memory map keeping sent message statistics by message id
      */
-    private final ConcurrentHashMap<Long, MessageData> msgId2MsgData;
+    private final ConcurrentHashMap<Long, DeliverableAndesMetadata> msgId2MsgData;
 
     /**
      * Map to track messages being buffered to be sent <Id of the slot, messageID, MsgData
      * reference>
      */
-    private final ConcurrentHashMap<String, ConcurrentHashMap<Long, MessageData>> messageBufferingTracker
-            = new ConcurrentHashMap<String, ConcurrentHashMap<Long, MessageData>>();
-
-    /**
-     * Map to track messages being sent <channel id, message id, MsgData reference>
-     */
-    private final ConcurrentHashMap<UUID, ConcurrentHashMap<Long, MessageData>> messageSendingTracker
-            = new ConcurrentHashMap<UUID, ConcurrentHashMap<Long, MessageData>>();
+    private final ConcurrentHashMap<String, ConcurrentHashMap<Long, DeliverableAndesMetadata>> messageBufferingTracker
+            = new ConcurrentHashMap<String, ConcurrentHashMap<Long, DeliverableAndesMetadata>>();
 
     /**
      * Map to keep track of message counts pending to read
@@ -93,68 +82,8 @@ public class OnflightMessageTracker {
         // Load factor set to default value 0.75
         // Concurrency level set to 6. Currently SlotDeliveryWorker, AckHandler AckSubscription, DeliveryEventHandler,
         // MessageFlusher access this. To be on the safe side set to 6.
-        msgId2MsgData = new ConcurrentHashMap<Long, MessageData>(16, 0.75f, 6);
+        msgId2MsgData = new ConcurrentHashMap<>(16, 0.75f, 6);
 
-    }
-
-    /**
-     * Message has failed to process by client. Re-buffer the message
-     *
-     * @param metadata metadata of message rejected
-     * @throws AndesException
-     */
-    public void handleFailure(AndesMessageMetadata metadata) throws AndesException {
-        long messageId = metadata.getMessageID();
-        UUID channelId = metadata.getChannelId();
-        if (log.isDebugEnabled()) {
-            log.debug("message was rejected by client id= " + messageId + " channel= " + channelId);
-        }
-        stampMessageAsRejected(channelId, messageId);
-    }
-
-    /**
-     * To get number of deliveries to a particular channel for a particular message
-     *
-     * @param messageID MessageID id of the message
-     * @param channelID ChannelID id of the subscriber's channel
-     * @return Number of message deliveries for this particular channel
-     */
-    public int getNumOfMsgDeliveriesForChannel(long messageID, UUID channelID) {
-        if (null != getTrackingData(messageID)) {
-            return getTrackingData(messageID).getNumOfDeliveires4Channel(channelID);
-        } else {
-            return 0;
-        }
-    }
-
-    /**
-     * To get arrival time of the message
-     *
-     * @param messageID Id of the message
-     * @return Message arrival time
-     */
-    public long getMsgArrivalTime(long messageID) {
-        return getTrackingData(messageID).arrivalTime;
-    }
-
-    /**
-     * To check whether message is expired or not
-     *
-     * @param messageID Id of the message
-     * @return Msg is expired or not (boolean value)
-     */
-    public boolean isMsgExpired(long messageID) {
-        return getTrackingData(messageID).isExpired();
-    }
-
-    /**
-     * To get destination of the message
-     *
-     * @param messageID Id of the message
-     * @return Destination of the message
-     */
-    public String getMsgDestination(long messageID) {
-        return getTrackingData(messageID).destination;
     }
 
     /**
@@ -197,92 +126,28 @@ public class OnflightMessageTracker {
     }
 
     /**
-     * Track acknowledgement for message. When acknowledgement received this method will remove the
-     * tracking information from tracking lists.
-     *
-     * @param channel   channel of the ack
-     * @param messageID id of the message ack is for
-     * @return if message is OK to delete (all acks received)
-     * @throws AndesException
-     */
-    public boolean handleAckReceived(UUID channel, long messageID) throws AndesException {
-
-        if (log.isDebugEnabled()) {
-            log.debug("Ack Received message id= " + messageID + " channel id= " + channel);
-        }
-
-        boolean isOKToDeleteMessage = false;
-
-        //release delivery tracing
-        MessageData trackingData = getTrackingData(messageID);
-
-        //decrement delivery count
-        if (trackingData != null) {
-            trackingData.decrementDeliveryCount(channel);
-
-            trackingData.addMessageStatus(MessageStatus.ACKED);
-
-            //we consider ack is received if all acks came for channels message was sent
-            if (trackingData.allAcksReceived() && getNumberOfScheduledDeliveries(messageID) == 0) {
-                trackingData.addMessageStatus(MessageStatus.ACKED_BY_ALL);
-
-                isOKToDeleteMessage = true;
-                if (log.isDebugEnabled()) {
-                    log.debug("OK to remove message from store as all acks are received id= " + messageID);
-                }
-            }
-        } else {
-            log.error("Could not find tracking data for message id " + messageID + " and channel " + channel);
-        }
-
-        return isOKToDeleteMessage;
-    }
-
-    /**
-     * Track reject of the message
-     *
-     * @param channel   channel of the message reject
-     * @param messageID id of the message reject represent
-     */
-    public void stampMessageAsRejected(UUID channel, long messageID) {
-        if (log.isDebugEnabled()) {
-            log.debug("stamping message as rejected id = " + messageID);
-        }
-        MessageData trackingData = getTrackingData(messageID);
-        if (trackingData != null) {
-            trackingData.timestamp = System.currentTimeMillis();
-            trackingData.addMessageStatus(MessageStatus.REJECTED_AND_BUFFERED);
-        }
-    }
-
-    /**
      * Track that this message is buffered. Return true if eligible to buffer
      *
      * @param slot                 slot message being read in
      * @param andesMessageMetadata metadata to buffer
      * @return eligibility to buffer
      */
-    public boolean addMessageToBufferingTracker(Slot slot, AndesMessageMetadata andesMessageMetadata) {
+    public boolean addMessageToBufferingTracker(Slot slot, DeliverableAndesMetadata andesMessageMetadata) {
         long messageID = andesMessageMetadata.getMessageID();
         boolean isOKToBuffer;
         if (log.isDebugEnabled()) {
             log.debug("Buffering message id = " + messageID + " slot = " + slot.toString());
         }
         String slotID = slot.getId();
-        ConcurrentHashMap<Long, MessageData> messagesOfSlot = messageBufferingTracker.get(slotID);
+        ConcurrentHashMap<Long, DeliverableAndesMetadata> messagesOfSlot = messageBufferingTracker.get(slotID);
         if (messagesOfSlot == null) {
-            messagesOfSlot = new ConcurrentHashMap<Long, MessageData>();
+            messagesOfSlot = new ConcurrentHashMap<>();
             messageBufferingTracker.put(slotID, messagesOfSlot);
         }
-        MessageData trackingData = messagesOfSlot.get(messageID);
+        DeliverableAndesMetadata trackingData = messagesOfSlot.get(messageID);
         if (trackingData == null) {
-            trackingData = new MessageData(messageID, slot,
-                    slot.getDestinationOfMessagesInSlot(),
-                    System.currentTimeMillis(),
-                    andesMessageMetadata.getExpirationTime(),
-                    MessageStatus.BUFFERED, andesMessageMetadata.getArrivalTime());
-            msgId2MsgData.put(messageID, trackingData);
-            messagesOfSlot.put(messageID, trackingData);
+            msgId2MsgData.put(messageID, andesMessageMetadata);
+            messagesOfSlot.put(messageID, andesMessageMetadata);
             isOKToBuffer = true;
         } else {
             if (log.isDebugEnabled()) {
@@ -291,23 +156,6 @@ public class OnflightMessageTracker {
             isOKToBuffer = false;
         }
         return isOKToBuffer;
-    }
-
-    /**
-     * Check if a message is already buffered without adding it to the buffer
-     *
-     * @param slot      slot of the message
-     * @param messageID id of the message
-     * @return if message is already been buffered
-     */
-    public boolean checkIfMessageIsAlreadyBuffered(Slot slot, long messageID) {
-        boolean isAlreadyBuffered = false;
-        String slotID = slot.getId();
-        MessageData trackingData = messageBufferingTracker.get(slotID).get(messageID);
-        if (trackingData != null) {
-            isAlreadyBuffered = true;
-        }
-        return isAlreadyBuffered;
     }
 
     /**
@@ -324,46 +172,24 @@ public class OnflightMessageTracker {
             log.debug("Releasing tracking of messages for slot " + slot.toString());
         }
         String slotID = slot.getId();
-        ConcurrentHashMap<Long, MessageData> messagesOfSlot = messageBufferingTracker.remove(slotID);
+        ConcurrentHashMap<Long, DeliverableAndesMetadata> messagesOfSlot = messageBufferingTracker.remove(slotID);
         if (messagesOfSlot != null) {
             for (Long messageId : messagesOfSlot.keySet()) {
-                MessageData msgData = getTrackingData(messageId);
-                msgData.addMessageStatus(MessageStatus.SLOT_REMOVED);
-                if (checkIfReadyToRemoveFromTracking(messageId)) {
+                DeliverableAndesMetadata messageMetadata = getTrackingData(messageId);
+                messageMetadata.markAsSlotRemoved();
+                if (messageMetadata.isOKToDispose()) {
                     if (log.isDebugEnabled()) {
                         log.debug("removing tracking object from memory id " + messageId);
                     }
+                    msgId2MsgData.remove(messageId);
                 } else {
-                    log.error("Tracking data for message id " + messageId + " removed while in an invalid state. (" + msgData.getStatusHistory() + ")");
+                    msgId2MsgData.remove(messageId);
+                    log.error("Tracking data for message id " + messageId
+                            + " removed while in an invalid state. ("
+                            + messageMetadata.getStatusHistory() + ")");
                 }
-                msgId2MsgData.remove(messageId);
             }
         }
-    }
-
-    /**
-     * Report delivered messages for slot state update
-     *
-     * @param messagesToRemove
-     *         List messages removed from store
-     * @throws AndesException
-     */
-    public void updateMessageDeliveryInSlot(List<AndesRemovableMetadata> messagesToRemove) throws AndesException {
-        for (AndesRemovableMetadata message : messagesToRemove) {
-            MessageData trackingData = getTrackingData(message.getMessageID());
-            decrementMessageCountInSlot(trackingData.slot);
-        }
-    }
-
-    /**
-     * Remove tracking object from memory for a message if this returns true
-     *
-     * @param messageID id of the message to evaluate
-     * @return eligibility to delete tracking object
-     */
-    private boolean checkIfReadyToRemoveFromTracking(long messageID) {
-        MessageData messageTrackingData = getTrackingData(messageID);
-        return MessageStatus.isOKToRemove(messageTrackingData.messageStatus);
     }
 
     /**
@@ -377,9 +203,10 @@ public class OnflightMessageTracker {
             log.debug("Orphan slot situation and clear tracking of messages for slot = " + slot);
         }
         String slotID = slot.getId();
-        ConcurrentHashMap<Long, MessageData> messagesOfSlot = messageBufferingTracker.remove(slotID);
+        ConcurrentHashMap<Long, DeliverableAndesMetadata> messagesOfSlot = messageBufferingTracker.remove(slotID);
         if (messagesOfSlot != null) {
             for (Long messageId : messagesOfSlot.keySet()) {
+                msgId2MsgData.get(messageId).markAsSlotReturned();
                 msgId2MsgData.remove(messageId);
             }
         }
@@ -401,46 +228,13 @@ public class OnflightMessageTracker {
     }
 
     /**
-     * Set message status for a message.
-     * This can be buffered, sent, rejected etc
-     *
-     * @param messageStatus status of the message
-     * @param messageID Id of the message to set expired
-     */
-    public void setMessageStatus(MessageStatus messageStatus, long messageID) {
-        MessageData trackingData = getTrackingData(messageID);
-        if (null != trackingData) {
-            trackingData.addMessageStatus(messageStatus);
-        }
-    }
-
-    /**
-     * Set message status as expired
-     *
-     * @param messageID id of the message to set expired
-     */
-    public void stampMessageAsExpired(long messageID) {
-        getTrackingData(messageID).addMessageStatus(MessageStatus.EXPIRED);
-    }
-
-    /**
-     * Get the current status of the message in delivery pipeline
-     *
-     * @param messageID id of the message to get status
-     * @return status of the message
-     */
-    public MessageStatus getMessageStatus(long messageID) {
-        return getTrackingData(messageID).getLatestState();
-    }
-
-    /**
      * Get message tracking object for a message. This contains
      * all delivery information and message status of the message
      *
      * @param messageID id of the message
      * @return tracking object for message
      */
-    public MessageData getTrackingData(long messageID) {
+    public DeliverableAndesMetadata getTrackingData(long messageID) {
         return msgId2MsgData.get(messageID);
     }
 
@@ -456,8 +250,10 @@ public class OnflightMessageTracker {
         if (log.isDebugEnabled()) {
             log.debug("Removing all tracking of message id = " + messageID);
         }
-        MessageData trackingData = msgId2MsgData.remove(messageID);
-        Slot slot = trackingData.slot;
+        DeliverableAndesMetadata trackingData = msgId2MsgData.remove(messageID);
+        Slot slot = trackingData.getSlot();
+
+        //clear subscription tracking information in all delivered subscriptions
         for (UUID channelID : trackingData.getAllDeliveredChannels()) {
             LocalSubscription subscription = AndesContext.getInstance().getSubscriptionStore()
                     .getLocalSubscriptionForChannelId(channelID);
@@ -472,83 +268,6 @@ public class OnflightMessageTracker {
     }
 
     /**
-     * Increment number of times this message is scheduled to be delivered
-     * to different subscribers. This value will be equal to the number
-     * of subscribers expecting the message at that instance.
-     *
-     * @param messageID identifier of the message
-     * @return num of scheduled times after increment
-     */
-    public int incrementNumberOfScheduledDeliveries(long messageID) {
-        MessageData trackingData = getTrackingData(messageID);
-        int numOfSchedules = 0;
-        if (trackingData != null) {
-            trackingData.addMessageStatus(MessageStatus.SCHEDULED_TO_SEND);
-            numOfSchedules = trackingData.numberOfScheduledDeliveries.incrementAndGet();
-            if (log.isDebugEnabled()) {
-                log.debug("message id= " + messageID + " scheduled. Pending to execute= " + numOfSchedules);
-            }
-        }
-        return numOfSchedules;
-    }
-
-    /**
-     * Increment number of times this message is scheduled to be delivered
-     * to different subscribers. This value will be equal to the number
-     * of subscribers expecting the message at that instance.
-     *
-     * @param messageID identifier of the message
-     * @return num of scheduled times after increment
-     */
-    public int incrementNumberOfScheduledDeliveries(long messageID ,int count) {
-        MessageData trackingData = getTrackingData(messageID);
-        int numOfSchedules = 0;
-        if (trackingData != null) {
-            trackingData.addMessageStatus(MessageStatus.SCHEDULED_TO_SEND);
-            numOfSchedules = trackingData.numberOfScheduledDeliveries.addAndGet(count);
-            if (log.isDebugEnabled()) {
-                log.debug("message id= " + messageID + " scheduled. Pending to execute= " + numOfSchedules);
-            }
-        }
-        return numOfSchedules;
-    }
-
-
-    /**
-     * Decrement number of times this message is scheduled to be delivered.
-     * If message is actually sent to the subscriber this is decreased.
-     *
-     * @param messageID identifier of the message
-     * @return num of scheduled times after decrement
-     */
-    public int decrementNumberOfScheduledDeliveries(long messageID) {
-        MessageData trackingData = getTrackingData(messageID);
-        int count = 0;
-        if (trackingData != null) {
-            count = trackingData.numberOfScheduledDeliveries.decrementAndGet();
-            if (count == 0) {
-                trackingData.addMessageStatus(MessageStatus.SENT_TO_ALL);
-            }
-            if (log.isDebugEnabled()) {
-                log.debug("message id= " + messageID + " sent. Pending to execute= " + count);
-            }
-        }
-        return count;
-    }
-
-    /**
-     * Number of times a message is scheduled to deliver.
-     * There will be this number of executables ready to
-     * send the message.
-     *
-     * @param messageID identifier of the message
-     * @return number of schedules
-     */
-    public int getNumberOfScheduledDeliveries(long messageID) {
-        return getTrackingData(messageID).numberOfScheduledDeliveries.get();
-    }
-
-    /**
      * Dump message info to a csv file
      *
      * @param fileToWrite file to dump info
@@ -556,65 +275,9 @@ public class OnflightMessageTracker {
      */
     public void dumpMessageStatusToFile(File fileToWrite) throws AndesException {
 
-        try {
-            FileWriter writer = new FileWriter(fileToWrite);
-
-            writer.append("Message ID");
-            writer.append(',');
-            writer.append("Message Header");
-            writer.append(',');
-            writer.append("Destination");
-            writer.append(',');
-            writer.append("Message status");
-            writer.append(',');
-            writer.append("Slot Info");
-            writer.append(',');
-            writer.append("Timestamp");
-            writer.append(',');
-            writer.append("Expiration time");
-            writer.append(',');
-            writer.append("NumOfScheduledDeliveries");
-            writer.append(',');
-            writer.append("Channels sent");
-            writer.append('\n');
-
-            for (Long messageID : msgId2MsgData.keySet()) {
-                MessageData trackingData = msgId2MsgData.get(messageID);
-                writer.append(Long.toString(trackingData.msgID));
-                writer.append(',');
-                writer.append("null");
-                writer.append(',');
-                writer.append(trackingData.destination);
-                writer.append(',');
-                writer.append(trackingData.getStatusHistory());
-                writer.append(',');
-                writer.append(trackingData.slot.toString());
-                writer.append(',');
-                writer.append(Long.toString(trackingData.timestamp));
-                writer.append(',');
-                writer.append(Long.toString(trackingData.expirationTime));
-                writer.append(',');
-                writer.append(Integer.toString(trackingData.numberOfScheduledDeliveries.get()));
-                writer.append(',');
-                String deliveries = "";
-                for (UUID channelID : trackingData.getAllDeliveredChannels()) {
-                    deliveries = deliveries + channelID + " >> " + trackingData
-                            .getNumOfDeliveires4Channel(channelID) + " : ";
-                }
-                writer.append(deliveries);
-                writer.append('\n');
-            }
-
-            writer.flush();
-            writer.close();
-
-        } catch (FileNotFoundException e) {
-            log.error("File to write is not found", e);
-            throw new AndesException("File to write is not found", e);
-        } catch (IOException e) {
-            log.error("Error while dumping message status to file", e);
-            throw new AndesException("Error while dumping message status to file", e);
+        for (Long messageID : msgId2MsgData.keySet()) {
+            DeliverableAndesMetadata trackingData = msgId2MsgData.get(messageID);
+            trackingData.dumpMessageStatusToFile(fileToWrite);
         }
     }
-
 }
