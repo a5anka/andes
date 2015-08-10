@@ -39,14 +39,8 @@ public class MaximumNumOfDeliveryRule implements DeliveryRule {
     private int maximumRedeliveryTimes = (Integer) AndesConfigurationManager
             .readValue(AndesConfiguration.TRANSPORTS_AMQP_MAXIMUM_REDELIVERY_ATTEMPTS);
 
-    /**
-     * Used to get message information
-     */
-    private OnflightMessageTracker onflightMessageTracker;
-
     public MaximumNumOfDeliveryRule(AMQChannel channel) {
         this.amqChannelID = channel.getId();
-        onflightMessageTracker = OnflightMessageTracker.getInstance();
     }
 
     /**

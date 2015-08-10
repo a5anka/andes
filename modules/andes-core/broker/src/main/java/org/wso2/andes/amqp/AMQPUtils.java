@@ -139,7 +139,9 @@ public class AMQPUtils {
         StorableMessageMetaData metaData = convertAndesMetadataToAMQMetadata(metadata);
         QpidStoredMessage<MessageMetaData> message = new QpidStoredMessage<MessageMetaData>(
                 new StoredAMQPMessage(messageId, metaData), content);
-        return new AMQMessage(message);
+        AMQMessage amqMessage = new AMQMessage(message);
+        amqMessage.setAndesMetadataReference(metadata);
+        return amqMessage;
     }
 
     /**

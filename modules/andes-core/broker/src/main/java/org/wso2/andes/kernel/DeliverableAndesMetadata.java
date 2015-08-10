@@ -344,8 +344,10 @@ public class DeliverableAndesMetadata extends AndesMessageMetadata{
     public boolean isMarkAsDelivered() {
         boolean isDelivered = true;
         for (Map.Entry<UUID, ChannelInformation> channelInfoEntry : channelDeliveryInfo.entrySet()) {
-            ChannelMessageStatus messageStatus = channelInfoEntry.getValue().getLatestMessageStatus();
-            if(!messageStatus.equals(ChannelMessageStatus.SENT)) {
+            ChannelMessageStatus channelMessageStatus = channelInfoEntry.getValue().getLatestMessageStatus();
+            if(null == channelMessageStatus
+                    || !(channelMessageStatus.equals(ChannelMessageStatus.SENT)
+                    || channelMessageStatus.equals(ChannelMessageStatus.RESENT))) {
                 isDelivered = false;
                 break;
             }
@@ -361,7 +363,7 @@ public class DeliverableAndesMetadata extends AndesMessageMetadata{
         boolean isAcked = true;
         for (Map.Entry<UUID, ChannelInformation> channelInfoEntry : channelDeliveryInfo.entrySet()) {
             ChannelMessageStatus messageStatus = channelInfoEntry.getValue().getLatestMessageStatus();
-            if(!messageStatus.equals(ChannelMessageStatus.ACKED)) {
+            if(null == messageStatus || !messageStatus.equals(ChannelMessageStatus.ACKED)) {
                 isAcked = false;
                 break;
             }
@@ -400,7 +402,7 @@ public class DeliverableAndesMetadata extends AndesMessageMetadata{
                 isValidTransition = true;
                 messageStatus.add(state);
             } else {
-                log.warn("Invalid State transition suggested: " + state  + " Message ID: " + messageID);
+                log.warn("Invalid message state transition suggested: " + state  + " Message ID: " + messageID);
             }
         } else {
             isValidTransition = messageStatus.get(messageStatus.size() - 1).isValidNextTransition(state);
@@ -512,22 +514,37 @@ public class DeliverableAndesMetadata extends AndesMessageMetadata{
          */
         private boolean addChannelStatus(ChannelMessageStatus state) {
 
-            boolean isValidTransition;
+            boolean isValidTransition = false;
 
-            isValidTransition = messageStatusesForChannel.get(messageStatusesForChannel.size() - 1).isValidNextTransition(state);
-            if(isValidTransition) {
-                messageStatusesForChannel.add(state);
+            if(messageStatusesForChannel.isEmpty()) {
+                if(ChannelMessageStatus.DELIVERY_OK.equals(state) || ChannelMessageStatus.DELIVERY_REJECT.equals(state)) {
+                    isValidTransition = true;
+                    messageStatusesForChannel.add(state);
+                } else {
+                    log.warn("Invalid channel message state transition suggested: " + state  + " Message ID: " +
+                            messageID);
+                }
             } else {
-                log.warn("Invalid channel message state transition from " + messageStatusesForChannel.get
-                        (messageStatusesForChannel.size() - 1) + " suggested: " + state + " Message ID: " + messageID);
+                isValidTransition = messageStatusesForChannel.
+                        get(messageStatusesForChannel.size() - 1).isValidNextTransition(state);
 
+                if(isValidTransition) {
+                    messageStatusesForChannel.add(state);
+                } else {
+                    log.warn("Invalid channel message state transition from " + messageStatusesForChannel.get
+                            (messageStatusesForChannel.size() - 1) + " suggested: " + state + " Message ID: " + messageID);
+                }
             }
 
             return isValidTransition;
         }
 
         private ChannelMessageStatus getLatestMessageStatus() {
-            return messageStatusesForChannel.get(messageStatusesForChannel.size() - 1);
+            if(!messageStatusesForChannel.isEmpty()) {
+                return messageStatusesForChannel.get(messageStatusesForChannel.size() - 1);
+            } else {
+                return null;
+            }
         }
 
         private List<ChannelMessageStatus> getMessageStatusHistoryForChannel() {

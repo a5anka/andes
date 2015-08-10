@@ -336,7 +336,8 @@ public class QueueManagementInformationMBean extends AMQManagedObject implements
 
                     messagesToRemove.add(metadata);
 
-                    AndesMessage andesMessage = new AndesMessage(metadata);
+                    AndesMessageMetadata clonedMetadata = metadata.shallowCopy(metadata.getMessageID());
+                    AndesMessage andesMessage = new AndesMessage(clonedMetadata);
 
                     // Update Andes message with all the chunk details
                     List<AndesMessagePart> messageParts = messageContent.get(messageId);
@@ -344,8 +345,7 @@ public class QueueManagementInformationMBean extends AMQManagedObject implements
                         andesMessage.addMessagePart(messagePart);
                     }
 
-                    // Handover message to Andes
-                    //TODO:do we need to update message ID before sending?
+                    // Handover message to Andes. This will generate a new message ID and store it
                     Andes.getInstance().messageReceived(andesMessage, andesChannel, disablePubAck);
                 }
 
@@ -404,7 +404,8 @@ public class QueueManagementInformationMBean extends AMQManagedObject implements
                             ClusterResourceHolder.getInstance().getClusterManager().getMyNodeID(), false));
 
                     metadata.updateMetadata(newDestinationQueueName, AMQPUtils.DIRECT_EXCHANGE_NAME);
-                    AndesMessage andesMessage = new AndesMessage(metadata);
+                    AndesMessageMetadata clonedMetadata = metadata.shallowCopy(metadata.getMessageID());
+                    AndesMessage andesMessage = new AndesMessage(clonedMetadata);
 
                     messagesToRemove.add(metadata);
 
@@ -414,8 +415,7 @@ public class QueueManagementInformationMBean extends AMQManagedObject implements
                         andesMessage.addMessagePart(messagePart);
                     }
 
-                    // Handover message to Andes
-                    //TODO: do we need to update the message id before sending?
+                    // Handover message to Andes. This will generate a new message ID and store it
                     Andes.getInstance().messageReceived(andesMessage, andesChannel, disablePubAck);
                 }
 

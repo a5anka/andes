@@ -19,6 +19,7 @@
 package org.wso2.andes.server.queue;
 
 import org.wso2.andes.AMQException;
+import org.wso2.andes.kernel.DeliverableAndesMetadata;
 import org.wso2.andes.server.subscription.Subscription;
 import org.wso2.andes.server.message.ServerMessage;
 

@@ -19,22 +19,15 @@ package org.wso2.andes.kernel;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.wso2.andes.server.message.AMQMessage;
 import org.wso2.andes.server.queue.QueueEntry;
 
 /**
  * This class represents message purging Delivery Rule
  */
 public class MessagePurgeRule implements DeliveryRule {
+
     private static Log log = LogFactory.getLog(MessagePurgeRule.class);
-
-    /**
-     * Used to get message information
-     */
-    private OnflightMessageTracker onflightMessageTracker;
-
-    public MessagePurgeRule() {
-        onflightMessageTracker = OnflightMessageTracker.getInstance();
-    }
 
     /**
      * Evaluating the message purge delivery rule
@@ -45,7 +38,7 @@ public class MessagePurgeRule implements DeliveryRule {
     @Override
     public boolean evaluate(QueueEntry message) throws AndesException {
         long messageID = message.getMessage().getMessageNumber();
-        DeliverableAndesMetadata andesMetadata = OnflightMessageTracker.getInstance().getTrackingData(messageID);
+        DeliverableAndesMetadata andesMetadata = ((AMQMessage)message.getMessage()).getAndesMetadataReference();
         // Get last purged timestamp of the destination queue.
         long lastPurgedTimestampOfQueue =
                 MessageFlusher.getInstance().getMessageDeliveryInfo(andesMetadata.getDestination())

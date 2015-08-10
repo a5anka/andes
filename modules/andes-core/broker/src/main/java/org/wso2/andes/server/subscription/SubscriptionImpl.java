@@ -260,8 +260,7 @@ public abstract class SubscriptionImpl implements Subscription, FlowCreditManage
                 // when channel is available
                 if (getChannel().isClosing()) {
                     
-                    DeliverableAndesMetadata message = OnflightMessageTracker.getInstance().getTrackingData(entry
-                            .getMessage().getMessageNumber());
+                    DeliverableAndesMetadata message = ((AMQMessage)entry.getMessage()).getAndesMetadataReference();
 
                     if ( log.isDebugEnabled()){
                         log.debug("channel getting closed therefore, not trying to deliver : " + message.getMessageID());
@@ -305,7 +304,6 @@ public abstract class SubscriptionImpl implements Subscription, FlowCreditManage
                     }
                 }
 
-                //todo: hasitha - should we consider requeing here?
                 throw new AMQException("SEND FAILED >> Exception occurred while sending message " +
                         "out message ID" + entry.getMessage().getMessageNumber()
                         + " " + e.getMessage(), e);
