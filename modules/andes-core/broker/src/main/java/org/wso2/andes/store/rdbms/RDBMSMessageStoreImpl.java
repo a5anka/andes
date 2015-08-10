@@ -2164,7 +2164,7 @@ public class RDBMSMessageStoreImpl implements MessageStore {
      * Removes given list of messages/ids from the cache
      * 
      * @param messagesToRemove
-     *            list of message Ids
+     *            list of messages
      */
     private void removeFromCache(List<AndesMessageMetadata> messagesToRemove) {
 
