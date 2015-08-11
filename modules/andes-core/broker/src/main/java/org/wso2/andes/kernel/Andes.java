@@ -417,8 +417,10 @@ public class Andes {
      * @param subscription    subscription to send
      * @throws AndesException
      */
-    public void reQueueMessage(DeliverableAndesMetadata messageMetadata, LocalSubscription subscription) throws AndesException {
-        MessagingEngine.getInstance().reQueueMessage(messageMetadata, subscription);
+    public void reQueueMessageToSubscriber(DeliverableAndesMetadata messageMetadata, LocalSubscription subscription)
+            throws
+            AndesException {
+        MessagingEngine.getInstance().reQueueMessageToSubscriber(messageMetadata, subscription);
     }
 
     /**

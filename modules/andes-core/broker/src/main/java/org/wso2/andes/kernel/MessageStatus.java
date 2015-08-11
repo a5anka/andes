@@ -17,6 +17,8 @@
 */
 package org.wso2.andes.kernel;
 
+import com.sun.corba.se.impl.interceptors.SlotTableStack;
+
 import java.util.EnumSet;
 import java.util.List;
 
@@ -143,31 +145,31 @@ public enum MessageStatus {
 
     static {
 
-        READ.next = EnumSet.of(BUFFERED);
+        READ.next = EnumSet.of(BUFFERED, SLOT_RETURNED);
         READ.previous = EnumSet.complementOf(EnumSet.allOf(MessageStatus.class));
 
-        BUFFERED.next = EnumSet.of(SCHEDULED_TO_SEND);
+        BUFFERED.next = EnumSet.of(SCHEDULED_TO_SEND, SLOT_RETURNED);
         BUFFERED.previous = EnumSet.of(READ);
 
-        SCHEDULED_TO_SEND.next = EnumSet.of(SENT_TO_ALL);
+        SCHEDULED_TO_SEND.next = EnumSet.of(SENT_TO_ALL, SLOT_RETURNED);
         SCHEDULED_TO_SEND.previous = EnumSet.of(BUFFERED);
 
-        SENT_TO_ALL.next = EnumSet.of(ACKED_BY_ALL);
+        SENT_TO_ALL.next = EnumSet.of(ACKED_BY_ALL, SLOT_RETURNED);
         SENT_TO_ALL.previous = EnumSet.of(SCHEDULED_TO_SEND);
 
-        ACKED_BY_ALL.next = EnumSet.of(DELETED);
+        ACKED_BY_ALL.next = EnumSet.of(DELETED, SLOT_RETURNED);
         ACKED_BY_ALL.previous = EnumSet.of(SENT_TO_ALL);
 
-        EXPIRED.next = EnumSet.of(DELETED);
+        EXPIRED.next = EnumSet.of(DELETED, SLOT_RETURNED);
         EXPIRED.previous = EnumSet.allOf(MessageStatus.class);
 
-        DLC_MESSAGE.next = EnumSet.of(BUFFERED, DELETED);
+        DLC_MESSAGE.next = EnumSet.of(BUFFERED, DELETED, SLOT_RETURNED);
         DLC_MESSAGE.previous = EnumSet.of(SENT_TO_ALL);
 
-        PURGED.next = EnumSet.of(DELETED);
+        PURGED.next = EnumSet.of(DELETED, SLOT_RETURNED);
         PURGED.previous = EnumSet.allOf(MessageStatus.class);
 
-        DELETED.next = EnumSet.of(SLOT_REMOVED);
+        DELETED.next = EnumSet.of(SLOT_REMOVED, SLOT_RETURNED);
         DELETED.previous = EnumSet.of(EXPIRED, DLC_MESSAGE, PURGED);
 
         SLOT_REMOVED.next = EnumSet.complementOf(EnumSet.allOf(MessageStatus.class));

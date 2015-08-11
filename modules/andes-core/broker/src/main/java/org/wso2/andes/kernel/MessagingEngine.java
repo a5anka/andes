@@ -222,7 +222,7 @@ public class MessagingEngine {
         if (subToResend != null) {
             andesMetadata.markAsRejectedByClient(channelID);
             subToResend.msgRejectReceived(andesMetadata.messageID);
-            reQueueMessage(andesMetadata, subToResend);
+            reQueueMessageToSubscriber(andesMetadata, subToResend);
         } else {
             log.warn("Cannot handle reject. Subscription not found for channel " + channelID
                     + "Dropping message id= " + andesMetadata.getMessageID());
@@ -233,18 +233,34 @@ public class MessagingEngine {
     }
 
     /**
-     * Schedule message for subscription
+     * Schedule message for subscription. Slot Returned and slot removed messages
+     * are not scheduled
      *
      * @param messageMetadata message to be scheduled
      * @param subscription    subscription to send
      * @throws AndesException
      */
-    public void reQueueMessage(DeliverableAndesMetadata messageMetadata, LocalSubscription subscription)
+    public void reQueueMessageToSubscriber(DeliverableAndesMetadata messageMetadata, LocalSubscription subscription)
             throws AndesException {
-        MessageFlusher.getInstance().scheduleMessageForSubscription(subscription, messageMetadata);
 
-	    //Tracing message activity
-	    MessageTracer.trace(messageMetadata, MessageTracer.MESSAGE_REQUEUED);
+        if(!messageMetadata.isOKToDispose()) {
+            MessageFlusher.getInstance().scheduleMessageForSubscription(subscription, messageMetadata);
+            //Tracing message activity
+            MessageTracer.trace(messageMetadata, MessageTracer.MESSAGE_REQUEUED);
+        }
+    }
+
+    /**
+     * Re-queue message to andes core. This message will be delivered to
+     * any eligible subscriber to receive later. This also check message status before
+     * re-schedule
+     * @param messageMetadata message to reschedule
+     * @throws AndesException in case of an error
+     */
+    public void reQueueMessage(DeliverableAndesMetadata messageMetadata) throws AndesException {
+        if(!messageMetadata.isOKToDispose()) {
+            MessageFlusher.getInstance().reQueueMessage(messageMetadata);
+        }
     }
 
     /**

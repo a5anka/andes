@@ -400,12 +400,13 @@ public class MessageFlusher {
         flusherExecutor.submit(subscription, message);
     }
 
-    //TODO: in multiple subscription case this can cause message duplication
     /**
-     * Will be responsible in placing the message back at the queue if delivery fails
-     * @param message the message which was scheduled for delivery to its subscribers
+     * Re-queue message to andes core. This message will be delivered to
+     * any eligible subscriber to receive later. in multiple subscription case this
+     * can cause message duplication.
+     * @param message message to reschedule
      */
-    public void reQueueUndeliveredMessagesDueToInactiveSubscriptions(DeliverableAndesMetadata message) {
+    public void reQueueMessage(DeliverableAndesMetadata message) {
         String destination = message.getDestination();
         subscriptionCursar4QueueMap.get(destination).readButUndeliveredMessages.add(message);
     }

@@ -95,13 +95,14 @@ public class DeliveryEventHandler implements EventHandler<DeliveryEventData> {
                     messageMeter.mark();
 
                 } else {
-                    //destination would be target queue if it is durable topic, otherwise it is queue or non durable topic
-                    if(subscription.isBoundToTopic() && subscription.isDurable()){
-                        message.setDestination(subscription.getTargetQueue());
+                    if(subscription.isDurable()) {
+                        //re-queue message to andes core so that it can find other subscriber to deliver
+                        MessagingEngine.getInstance().reQueueMessage(message);
                     } else {
-                        message.setDestination(subscription.getSubscribedDestination());
+                        if(!message.isOKToDispose()) {
+                            log.warn("Cannot send message id= " + message.getMessageID() + " as subscriber is closed");
+                        }
                     }
-                    MessagingEngine.getInstance().reQueueMessage(message, subscription);
                 }
             } catch (Throwable e) {
                 log.error("Error while delivering message. Message id " + message.getMessageID(), e);
