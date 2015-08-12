@@ -224,25 +224,6 @@ public class AMQPLocalSubscription extends InboundSubscriptionEvent {
     }
 
     /**
-     * Add message to sending tracker which keeps messages delivered to this channel
-     * @param messageID ID of the message to add
-     */
-    private void addMessageToSendingTracker(long messageID) {
-
-        if (log.isDebugEnabled()) {
-            log.debug("Adding message to sending tracker channel id = " + getChannelID() + " message id = "
-                    + messageID);
-        }
-
-        DeliverableAndesMetadata messageData = messageSendingTracker.get(messageID);
-
-        if (null == messageData) {
-            messageData = OnflightMessageTracker.getInstance().getTrackingData(messageID);
-            messageSendingTracker.put(messageID, messageData);
-        }
-    }
-
-    /**
      * write message to channel
      *
      * @param queueEntry message to send
