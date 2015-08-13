@@ -197,9 +197,13 @@ public class AMQPLocalSubscription extends InboundSubscriptionEvent {
             String destinationQueue = messageMetadata.getDestination();
             // Move message to DLC
             // All the Queues and Durable Topics related messages are adding to DLC
-            if (!isBoundToTopic || isDurable){
+            if ((!isBoundToTopic) || isDurable){
                 messageSendingTracker.remove(messageMetadata.getMessageID());
                 MessagingEngine.getInstance().moveMessageToDeadLetterChannel(messageMetadata.getMessageID(), destinationQueue);
+            } else { //for topic messages we forget that the message is sent to that subscriber
+                log.warn("Delivery rule evaluation failed. Forgetting message id= " + messageMetadata.getMessageID()
+                        + " for subscriber " + subscriptionID);
+                messageMetadata.removeScheduledDeliveryChannel(getChannelID());
             }
         }
     }

@@ -279,6 +279,10 @@ public abstract class SubscriptionImpl implements Subscription, FlowCreditManage
 
                 sendToClient(entry, deliveryTag);
 
+                //We do not need to keep the whole message as we save it in DB. As this can cause Out Of Memory issue
+                //in a loaded environment
+                entry.dispose();
+
             } catch (Exception e) {
 
                 // Try and shed more light about the exact context of the error (only in debug mode)

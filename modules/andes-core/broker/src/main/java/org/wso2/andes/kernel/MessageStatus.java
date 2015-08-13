@@ -17,8 +17,6 @@
 */
 package org.wso2.andes.kernel;
 
-import com.sun.corba.se.impl.interceptors.SlotTableStack;
-
 import java.util.EnumSet;
 import java.util.List;
 
@@ -145,6 +143,9 @@ public enum MessageStatus {
 
     static {
 
+        //SLOT_RETURNED, PURGE, EXPIRE, SLOT REMOVE can happen at any moment
+        //next state of SLOT_RETURNED, PURGE, EXPIRE, SLOT REMOVE can be any state
+
         READ.next = EnumSet.of(BUFFERED, SLOT_RETURNED);
         READ.previous = EnumSet.complementOf(EnumSet.allOf(MessageStatus.class));
 
@@ -192,6 +193,7 @@ public enum MessageStatus {
                 || messageStatus.contains(MessageStatus.DLC_MESSAGE)
                 || messageStatus.contains(MessageStatus.PURGED)
                 || messageStatus.contains(MessageStatus.DELETED))
-                || messageStatus.get(messageStatus.size() - 1).equals(MessageStatus.SLOT_REMOVED);
+                || messageStatus.get(messageStatus.size() - 1).equals(MessageStatus.SLOT_REMOVED)
+                || messageStatus.get(messageStatus.size() - 1).equals(MessageStatus.SLOT_RETURNED);
     }
 }

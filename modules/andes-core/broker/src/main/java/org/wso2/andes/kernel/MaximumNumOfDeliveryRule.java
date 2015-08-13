@@ -22,6 +22,7 @@ import org.apache.commons.logging.LogFactory;
 import org.wso2.andes.configuration.AndesConfigurationManager;
 import org.wso2.andes.configuration.enums.AndesConfiguration;
 import org.wso2.andes.server.AMQChannel;
+import org.wso2.andes.server.message.AMQMessage;
 import org.wso2.andes.server.queue.QueueEntry;
 
 import java.util.UUID;
@@ -53,7 +54,7 @@ public class MaximumNumOfDeliveryRule implements DeliveryRule {
     public boolean evaluate(QueueEntry message) throws AndesException {
         long messageID = message.getMessage().getMessageNumber();
         //Check if number of redelivery tries has breached.
-        DeliverableAndesMetadata andesMetadata = OnflightMessageTracker.getInstance().getTrackingData(messageID);
+        DeliverableAndesMetadata andesMetadata = ((AMQMessage)message.getMessage()).getAndesMetadataReference();
         int numOfDeliveriesOfCurrentMsg = andesMetadata.getNumOfDeliveries4Channel(amqChannelID);
 
         if (numOfDeliveriesOfCurrentMsg > maximumRedeliveryTimes) {
