@@ -24,7 +24,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.wso2.andes.kernel.slot.Slot;
 
-import java.io.File;
+import java.util.Collection;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -133,16 +133,11 @@ public class OnflightMessageTracker {
     }
 
     /**
-     * Dump message info to a csv file
+     * Return all message tracking data
      *
-     * @param fileToWrite file to dump info
-     * @throws AndesException
+     * @return Collection of tracking data
      */
-    public void dumpMessageStatusToFile(File fileToWrite) throws AndesException {
-
-        for (Long messageID : msgId2MsgData.keySet()) {
-            DeliverableAndesMetadata trackingData = msgId2MsgData.get(messageID);
-            trackingData.dumpMessageStatusToFile(fileToWrite);
-        }
+    public Collection<DeliverableAndesMetadata> getAllTrackingData() {
+        return msgId2MsgData.values();
     }
 }
