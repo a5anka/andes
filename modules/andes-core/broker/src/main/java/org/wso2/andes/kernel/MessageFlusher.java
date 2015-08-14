@@ -252,7 +252,7 @@ public class MessageFlusher {
      */
     public void sendMessageToBuffer(List<DeliverableAndesMetadata> messagesRead, Slot slot) {
         try {
-            OnflightMessageTracker.getInstance().incrementMessageCountInSlot(slot, messagesRead.size());
+            slot.incrementPendingMessageCount(messagesRead.size());
             for (DeliverableAndesMetadata message : messagesRead) {
 
                 /**

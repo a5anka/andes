@@ -420,7 +420,7 @@ public class MessagingEngine {
                 DeliverableAndesMetadata deliverableMessage = OnflightMessageTracker.getInstance().getTrackingData
                         (message.getMessageID());
                 deliverableMessage.markAsDeletedMessage();
-                OnflightMessageTracker.getInstance().decrementMessageCountInSlot(deliverableMessage.getSlot());
+                deliverableMessage.getSlot().decrementPendingMessageCount();
             }
 
         } else {
@@ -441,7 +441,7 @@ public class MessagingEngine {
                 DeliverableAndesMetadata deliverableMessage = OnflightMessageTracker.getInstance().getTrackingData
                         (message.getMessageID());
                 deliverableMessage.markAsDLCMessage();
-                OnflightMessageTracker.getInstance().decrementMessageCountInSlot(deliverableMessage.getSlot());
+                deliverableMessage.getSlot().decrementPendingMessageCount();
             }
         }
     }
@@ -481,7 +481,7 @@ public class MessagingEngine {
             for(DeliverableAndesMetadata message : messagesToRemove) {
                 //mark messages as deleted
                 message.markAsDeletedMessage();
-                OnflightMessageTracker.getInstance().decrementMessageCountInSlot(message.getSlot());
+                message.getSlot().decrementPendingMessageCount();
             }
 
         } else {
@@ -499,7 +499,7 @@ public class MessagingEngine {
             //mark the messages as DLC messages
             for(DeliverableAndesMetadata message : messagesToRemove) {
                 message.markAsDLCMessage();
-                OnflightMessageTracker.getInstance().decrementMessageCountInSlot(message.getSlot());
+                message.getSlot().decrementPendingMessageCount();
             }
         }
     }

@@ -23,12 +23,10 @@ package org.wso2.andes.kernel;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.wso2.andes.kernel.slot.Slot;
-import org.wso2.andes.kernel.slot.SlotDeliveryWorker;
-import org.wso2.andes.kernel.slot.SlotDeliveryWorkerManager;
+
 import java.io.File;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * This class will track message delivery by broker
@@ -49,7 +47,6 @@ public class OnflightMessageTracker {
         }
     }
 
-
     public static OnflightMessageTracker getInstance() {
         return instance;
     }
@@ -58,12 +55,6 @@ public class OnflightMessageTracker {
      * In memory map keeping sent message statistics by message id
      */
     private final ConcurrentHashMap<Long, DeliverableAndesMetadata> msgId2MsgData;
-
-    /**
-     * Map to keep track of message counts pending to read
-     */
-    private final ConcurrentHashMap<Slot, AtomicInteger> pendingMessagesBySlot = new
-            ConcurrentHashMap<>();
 
     /**
      * Class to keep tracking data of a message
@@ -77,45 +68,6 @@ public class OnflightMessageTracker {
         // MessageFlusher access this. To be on the safe side set to 6.
         msgId2MsgData = new ConcurrentHashMap<>(16, 0.75f, 6);
 
-    }
-
-    /**
-     * Decrement message count in slot and if it is zero prepare for slot deletion
-     *
-     * @param slot Slot whose message count is decremented
-     * @throws AndesException
-     */
-    public void decrementMessageCountInSlot(Slot slot)
-            throws AndesException {
-        AtomicInteger pendingMessageCount = pendingMessagesBySlot.get(slot);
-        int messageCount = pendingMessageCount.decrementAndGet();
-        if (messageCount == 0) {
-            /*
-            All the Acks for the slot has bee received. Check the slot again for unsend
-            messages and if there are any send them and delete the slot.
-             */
-            SlotDeliveryWorker slotWorker = SlotDeliveryWorkerManager.getInstance()
-                                                                     .getSlotWorker(slot.getStorageQueueName());
-            if (log.isDebugEnabled()) {
-                log.debug("Slot has no pending messages. Now re-checking slot for messages");
-            }
-            slot.setSlotInActive();
-            slotWorker.deleteSlot(slot);
-        }
-    }
-
-    /**
-     * Increment the message count in a slot
-     *
-     * @param slot slot whose message counter should increment
-     */
-    public void incrementMessageCountInSlot(Slot slot, int amount) {
-        AtomicInteger pendingMessageCount = pendingMessagesBySlot.get(slot);
-        if (null == pendingMessageCount) {
-            pendingMessageCount = new AtomicInteger();
-            pendingMessagesBySlot.putIfAbsent(slot, pendingMessageCount);
-        }
-        pendingMessageCount.addAndGet(amount);
     }
 
     /**
@@ -177,7 +129,7 @@ public class OnflightMessageTracker {
             }
         }
 
-        decrementMessageCountInSlot(slot);
+        slot.decrementPendingMessageCount();
     }
 
     /**
