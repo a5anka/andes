@@ -22,10 +22,8 @@ package org.wso2.andes.kernel;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.wso2.andes.kernel.slot.Slot;
 
 import java.util.Collection;
-import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -89,9 +87,10 @@ public class OnflightMessageTracker {
      *
      * @param messageID
      *         Message ID of the message
+     * @return the tracking data associated with the given message I, or null if there was no mapping for key
      */
-    public void removeMessageFromTracker(Long messageID) {
-        msgId2MsgData.remove(messageID);
+    public DeliverableAndesMetadata removeMessageFromTracker(Long messageID) {
+        return msgId2MsgData.remove(messageID);
     }
 
     /**
@@ -103,33 +102,6 @@ public class OnflightMessageTracker {
      */
     public DeliverableAndesMetadata getTrackingData(long messageID) {
         return msgId2MsgData.get(messageID);
-    }
-
-    /**
-     * Permanently remove message from tacker. This will clear the tracking
-     * that message is buffered and message is sent and also will remove
-     * tracking object from memory
-     *
-     * @param messageID id of the message
-     */
-    public void stampMessageAsDLCAndRemoveFromTacking(long messageID) throws AndesException {
-        //remove actual object from memory
-        if (log.isDebugEnabled()) {
-            log.debug("Removing all tracking of message id = " + messageID);
-        }
-        DeliverableAndesMetadata trackingData = msgId2MsgData.remove(messageID);
-        Slot slot = trackingData.getSlot();
-
-        //clear subscription tracking information in all delivered subscriptions
-        for (UUID channelID : trackingData.getAllDeliveredChannels()) {
-            LocalSubscription subscription = AndesContext.getInstance().getSubscriptionStore()
-                    .getLocalSubscriptionForChannelId(channelID);
-            if(null != subscription) {
-                subscription.msgRejectReceived(messageID);
-            }
-        }
-
-        slot.decrementPendingMessageCount();
     }
 
     /**

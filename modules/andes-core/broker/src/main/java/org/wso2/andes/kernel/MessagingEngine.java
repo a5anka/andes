@@ -282,11 +282,38 @@ public class MessagingEngine {
         decrementQueueCount(destinationQueueName, 1);
 
         //remove tracking of the message
-        OnflightMessageTracker.getInstance()
-                .stampMessageAsDLCAndRemoveFromTacking(messageId);
+        stampMessageAsDLCAndRemoveFromTacking(messageId);
 
 	    //Tracing message activity
 	    MessageTracer.trace(messageId, destinationQueueName, MessageTracer.MOVED_TO_DLC);
+    }
+
+    /**
+     * Permanently remove message from tacker. This will clear the tracking that message is buffered and message is sent
+     * and also will remove tracking object from memory
+     *
+     * @param messageID
+     *         id of the message
+     */
+    private void stampMessageAsDLCAndRemoveFromTacking(long messageID) throws AndesException {
+        //remove actual object from memory
+        if (log.isDebugEnabled()) {
+            log.debug("Removing all tracking of message id = " + messageID);
+        }
+        DeliverableAndesMetadata trackingData = OnflightMessageTracker.getInstance()
+                                                                      .removeMessageFromTracker(messageID);
+        Slot slot = trackingData.getSlot();
+
+        //clear subscription tracking information in all delivered subscriptions
+        for (UUID channelID : trackingData.getAllDeliveredChannels()) {
+            LocalSubscription subscription = AndesContext.getInstance().getSubscriptionStore()
+                                                         .getLocalSubscriptionForChannelId(channelID);
+            if (null != subscription) {
+                subscription.msgRejectReceived(messageID);
+            }
+        }
+
+        slot.decrementPendingMessageCount();
     }
 
     /**
