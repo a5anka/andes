@@ -251,12 +251,9 @@ public class MessageFlusher {
      * @param slot
      *         these messages are belonged to
      */
-    public void sendMessageToBuffer(List<DeliverableAndesMetadata> messagesRead,
-                                    Slot slot) {
-
-
+    public void sendMessageToBuffer(List<DeliverableAndesMetadata> messagesRead, Slot slot) {
         try {
-            OnflightMessageTracker.getInstance().incrementMessageCountInSlot(slot, messagesRead.size());
+            slot.incrementPendingMessageCount(messagesRead.size());
             for (DeliverableAndesMetadata message : messagesRead) {
 
                 /**
@@ -269,21 +266,12 @@ public class MessageFlusher {
                 MessageDeliveryInfo messageDeliveryInfo = getMessageDeliveryInfo(destination);
                 //check and buffer message
                 //stamp this message as buffered
-                boolean isOKToBuffer = OnflightMessageTracker.getInstance()
-                                                             .addMessageToBufferingTracker(slot, message);
-                if (isOKToBuffer) {
-                    message.markAsBuffered();
-                    messageDeliveryInfo.readButUndeliveredMessages.add(message);
-                    //Tracing message
-                    MessageTracer.trace(message, MessageTracer.METADATA_BUFFERED_FOR_DELIVERY);
-                    //increment the message count in the slot
-                    //TODO: we do not increment slot count?
-                } else {
-                    OnflightMessageTracker.getInstance().decrementMessageCountInSlot(slot);
-                    log.warn("Tracker rejected message id= " + message.getMessageID() + " from buffering " +
-                             "to deliver. This is an already buffered message");
-                    //todo: this message is previously buffered. Should be removed from slot
-                }
+                OnflightMessageTracker.getInstance()
+                                      .addMessageToTracker(message);
+                message.markAsBuffered();
+                messageDeliveryInfo.readButUndeliveredMessages.add(message);
+                //Tracing message
+                MessageTracer.trace(message, MessageTracer.METADATA_BUFFERED_FOR_DELIVERY);
             }
         } catch (Throwable e) {
             log.fatal("Error scheduling messages for delivery", e);

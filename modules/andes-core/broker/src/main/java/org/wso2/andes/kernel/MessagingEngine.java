@@ -283,11 +283,38 @@ public class MessagingEngine {
         decrementQueueCount(destinationQueueName, 1);
 
         //remove tracking of the message
-        OnflightMessageTracker.getInstance()
-                .stampMessageAsDLCAndRemoveFromTacking(messageId);
+        stampMessageAsDLCAndRemoveFromTacking(messageId);
 
 	    //Tracing message activity
 	    MessageTracer.trace(messageId, destinationQueueName, MessageTracer.MOVED_TO_DLC);
+    }
+
+    /**
+     * Permanently remove message from tacker. This will clear the tracking that message is buffered and message is sent
+     * and also will remove tracking object from memory
+     *
+     * @param messageID
+     *         id of the message
+     */
+    private void stampMessageAsDLCAndRemoveFromTacking(long messageID) throws AndesException {
+        //remove actual object from memory
+        if (log.isDebugEnabled()) {
+            log.debug("Removing all tracking of message id = " + messageID);
+        }
+        DeliverableAndesMetadata trackingData = OnflightMessageTracker.getInstance()
+                                                                      .removeMessageFromTracker(messageID);
+        Slot slot = trackingData.getSlot();
+
+        //clear subscription tracking information in all delivered subscriptions
+        for (UUID channelID : trackingData.getAllDeliveredChannels()) {
+            LocalSubscription subscription = AndesContext.getInstance().getSubscriptionStore()
+                                                         .getLocalSubscriptionForChannelId(channelID);
+            if (null != subscription) {
+                subscription.msgRejectReceived(messageID);
+            }
+        }
+
+        slot.decrementPendingMessageCount();
     }
 
     /**
@@ -420,10 +447,8 @@ public class MessagingEngine {
                 //Message might be still tracked in delivery side. mark messages as deleted
                 DeliverableAndesMetadata deliverableMessage = OnflightMessageTracker.getInstance().getTrackingData
                         (message.getMessageID());
-                if(deliverableMessage != null) {
-                    deliverableMessage.markAsDeletedMessage();
-                    OnflightMessageTracker.getInstance().decrementMessageCountInSlot(deliverableMessage.getSlot());
-                }
+                deliverableMessage.markAsDeletedMessage();
+                deliverableMessage.getSlot().decrementPendingMessageCount();
             }
 
         } else {
@@ -443,10 +468,8 @@ public class MessagingEngine {
                 //Message might be still tracked in delivery side. mark messages as deleted
                 DeliverableAndesMetadata deliverableMessage = OnflightMessageTracker.getInstance().getTrackingData
                         (message.getMessageID());
-                if(deliverableMessage != null) {
-                    deliverableMessage.markAsDLCMessage();
-                    OnflightMessageTracker.getInstance().decrementMessageCountInSlot(deliverableMessage.getSlot());
-                }
+                deliverableMessage.markAsDLCMessage();
+                deliverableMessage.getSlot().decrementPendingMessageCount();
             }
         }
     }
@@ -486,7 +509,7 @@ public class MessagingEngine {
             for(DeliverableAndesMetadata message : messagesToRemove) {
                 //mark messages as deleted
                 message.markAsDeletedMessage();
-                OnflightMessageTracker.getInstance().decrementMessageCountInSlot(message.getSlot());
+                message.getSlot().decrementPendingMessageCount();
             }
 
         } else {
@@ -504,7 +527,7 @@ public class MessagingEngine {
             //mark the messages as DLC messages
             for(DeliverableAndesMetadata message : messagesToRemove) {
                 message.markAsDLCMessage();
-                OnflightMessageTracker.getInstance().decrementMessageCountInSlot(message.getSlot());
+                message.getSlot().decrementPendingMessageCount();
             }
         }
     }
