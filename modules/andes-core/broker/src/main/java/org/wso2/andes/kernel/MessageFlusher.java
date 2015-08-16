@@ -25,6 +25,7 @@ import org.wso2.andes.configuration.enums.AndesConfiguration;
 import org.wso2.andes.configuration.util.TopicMessageDeliveryStrategy;
 import org.wso2.andes.kernel.disruptor.delivery.DisruptorBasedFlusher;
 import org.wso2.andes.kernel.slot.Slot;
+import org.wso2.andes.subscription.LocalSubscription;
 import org.wso2.andes.subscription.SubscriptionStore;
 import org.wso2.andes.tools.utils.MessageTracer;
 import java.util.Collection;
@@ -383,7 +384,6 @@ public class MessageFlusher {
      */
     public void scheduleMessageForSubscription(LocalSubscription subscription,
                                                final DeliverableAndesMetadata message) {
-        message.markAsScheduledToDeliver(subscription);
         deliverMessageAsynchronously(subscription, message);
     }
 

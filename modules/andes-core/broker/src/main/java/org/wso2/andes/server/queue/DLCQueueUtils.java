@@ -31,6 +31,8 @@ import org.wso2.andes.server.registry.ApplicationRegistry;
 import org.wso2.andes.server.registry.IApplicationRegistry;
 import org.wso2.andes.server.virtualhost.VirtualHost;
 import org.wso2.andes.subscription.AMQPLocalSubscription;
+import org.wso2.andes.subscription.LocalSubscription;
+import org.wso2.andes.subscription.OutboundSubscription;
 
 /**
  * This class centralises the management of Dead Letter Queues by creating Dead Letter Queues when
@@ -99,7 +101,7 @@ public class DLCQueueUtils {
 
         String dlcQueueName;
 
-        if (org.wso2.carbon.base.MultitenantConstants.SUPER_TENANT_DOMAIN_NAME == tenantName) {
+        if (org.wso2.carbon.base.MultitenantConstants.SUPER_TENANT_DOMAIN_NAME.equals(tenantName)) {
             dlcQueueName = AndesConstants.DEAD_LETTER_QUEUE_SUFFIX;
         } else {
             dlcQueueName = tenantName + AndesConstants.TENANT_SEPARATOR + AndesConstants.DEAD_LETTER_QUEUE_SUFFIX;
@@ -119,11 +121,12 @@ public class DLCQueueUtils {
                     .getInstance());
             queueListener.handleLocalQueuesChanged(andesQueue, QueueListener.QueueEvent.ADDED);
             String nodeID = ClusterResourceHolder.getInstance().getClusterManager().getMyNodeID();
-            LocalSubscription mockSubscription =
-                    new AMQPLocalSubscription(queueRegistry.getQueue(new AMQShortString(dlcQueueName)),
-                            null, "0", dlcQueueName, false, false, true, nodeID,
-                            System.currentTimeMillis(), dlcQueueName, tenantOwner,
-                            ExchangeDefaults.DIRECT_EXCHANGE_NAME.toString(), "DIRECT", null, false);
+            OutboundSubscription protocolSub = new AMQPLocalSubscription(queueRegistry.getQueue(new AMQShortString
+                    (dlcQueueName)), null, true, false);
+
+            LocalSubscription mockSubscription = new LocalSubscription(protocolSub, "0", dlcQueueName, false, false,
+                    true, nodeID, System.currentTimeMillis(), dlcQueueName, tenantOwner,
+                    ExchangeDefaults.DIRECT_EXCHANGE_NAME.toString(), "DIRECT", null, false);
 
             AndesContext.getInstance().getSubscriptionStore().createDisconnectOrRemoveClusterSubscription
                     (mockSubscription, SubscriptionListener.SubscriptionChange.ADDED);

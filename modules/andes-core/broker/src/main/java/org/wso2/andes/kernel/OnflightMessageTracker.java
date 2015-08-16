@@ -25,6 +25,8 @@ import org.apache.commons.logging.LogFactory;
 import org.wso2.andes.kernel.slot.Slot;
 import org.wso2.andes.kernel.slot.SlotDeliveryWorker;
 import org.wso2.andes.kernel.slot.SlotDeliveryWorkerManager;
+import org.wso2.andes.subscription.LocalSubscription;
+
 import java.io.File;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -177,7 +179,8 @@ public class OnflightMessageTracker {
             for (Long messageId : messagesOfSlot.keySet()) {
                 DeliverableAndesMetadata messageMetadata = getTrackingData(messageId);
                 messageMetadata.markAsSlotRemoved();
-                if (messageMetadata.isOKToDispose()) {
+                if (messageMetadata.isOKToDispose()
+                        || messageMetadata.getLatestState().equals(MessageStatus.ACKED_BY_ALL)) {
                     if (log.isDebugEnabled()) {
                         log.debug("removing tracking object from memory id " + messageId);
                     }

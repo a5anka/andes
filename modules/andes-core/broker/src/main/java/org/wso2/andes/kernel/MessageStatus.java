@@ -187,9 +187,7 @@ public enum MessageStatus {
      * @return eligibility to remove
      */
     public static boolean isOKToRemove(List<MessageStatus> messageStatus) {
-        return (messageStatus.contains
-                (MessageStatus.ACKED_BY_ALL)
-                || messageStatus.contains(MessageStatus.EXPIRED)
+        return (messageStatus.contains(MessageStatus.EXPIRED)
                 || messageStatus.contains(MessageStatus.DLC_MESSAGE)
                 || messageStatus.contains(MessageStatus.PURGED)
                 || messageStatus.contains(MessageStatus.DELETED))

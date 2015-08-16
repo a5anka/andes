@@ -23,31 +23,24 @@ import org.wso2.andes.configuration.AndesConfigurationManager;
 import org.wso2.andes.configuration.enums.AndesConfiguration;
 import org.wso2.andes.kernel.slot.OrphanedSlotHandler;
 import org.wso2.andes.kernel.slot.SlotDeliveryWorkerManager;
-import org.wso2.andes.server.AMQChannel;
 import org.wso2.andes.server.cluster.coordination.ClusterCoordinationHandler;
 import org.wso2.andes.server.cluster.coordination.hazelcast.HazelcastAgent;
 import org.wso2.andes.subscription.BasicSubscription;
+import org.wso2.andes.subscription.LocalSubscription;
 import org.wso2.andes.subscription.SubscriptionStore;
-
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Semaphore;
 
 public class AndesSubscriptionManager {
 
     private static Log log = LogFactory.getLog(AndesSubscriptionManager.class);
 
-    //Hash map that keeps the unacked messages.
-    private Map<AMQChannel, Map<Long, Semaphore>> unAckedMessagelocks =
-            new ConcurrentHashMap<AMQChannel, Map<Long, Semaphore>>();
-
     private SubscriptionStore subscriptionStore;
 
-    private List<SubscriptionListener> subscriptionListeners = new ArrayList<SubscriptionListener>();
+    private List<SubscriptionListener> subscriptionListeners = new ArrayList<>();
 
     private static final String TOPIC_PREFIX = "topic.";
     private static final String QUEUE_PREFIX = "queue.";
@@ -60,10 +53,6 @@ public class AndesSubscriptionManager {
         addSubscriptionListener(new OrphanedSlotHandler());
     }
 
-
-    public Map<AMQChannel, Map<Long, Semaphore>> getUnAcknowledgedMessageLocks() {
-        return unAckedMessagelocks;
-    }
 
     /**
      * Register a subscription lister
@@ -244,8 +233,8 @@ public class AndesSubscriptionManager {
 
         for (Map.Entry<String, List<String>> entry : results.entrySet()) {
             String destination = entry.getKey();
-            Set<AndesSubscription> dbSubscriptions = new HashSet<AndesSubscription>();
-            Set<AndesSubscription> memorySubscriptions = new HashSet<AndesSubscription>();
+            Set<AndesSubscription> dbSubscriptions = new HashSet<>();
+            Set<AndesSubscription> memorySubscriptions = new HashSet<>();
 
             if (destination.startsWith(QUEUE_PREFIX)) {
                 String destinationQueueName = destination.replace(QUEUE_PREFIX, "");

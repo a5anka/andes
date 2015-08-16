@@ -270,7 +270,6 @@ public class MQTTopicManager {
     /**
      * Will notify to the subscribers who are bound to the topic
      *
-     * @param storageName   the topic the message was published that will be stored
      * @param message       the message content
      * @param messageID     the identifier of the message
      * @param publishedQOS  the level of qos the message was published
@@ -278,7 +277,7 @@ public class MQTTopicManager {
      * @param subscriberQOS the level of QOS of the subscription
      * @throws MQTTException during a failure to deliver the message to the subscribers
      */
-    public void distributeMessageToSubscriber(String storageName, String destination, ByteBuffer message, long messageID,
+    public void distributeMessageToSubscriber(String destination, ByteBuffer message, long messageID,
                                               int publishedQOS, boolean shouldRetain, String channelID, int subscriberQOS
                                               ,DeliverableAndesMetadata metaData)
             throws MQTTException {
@@ -296,7 +295,7 @@ public class MQTTopicManager {
             //There could be a situation where the message was published, but before it arrived to the subscription
             //The subscriber has disconnected at a situation as such we have to indicate the disconnection
             if (null != topicSubscriptions) {
-                Integer mid = topicSubscriptions.addOnFlightMessage(destination, storageName, messageID,metaData);
+                Integer mid = topicSubscriptions.addOnFlightMessage(destination, messageID,metaData);
 
                 if (log.isDebugEnabled()) {
                     log.debug("The message with id " + mid + " is sent for delivery to subscriber, " + channelID +

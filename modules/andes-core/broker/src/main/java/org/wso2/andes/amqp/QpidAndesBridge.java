@@ -42,6 +42,7 @@ import org.wso2.andes.server.queue.IncomingMessage;
 import org.wso2.andes.server.store.StorableMessageMetaData;
 import org.wso2.andes.server.subscription.Subscription;
 import org.wso2.andes.server.subscription.SubscriptionImpl;
+import org.wso2.andes.subscription.LocalSubscription;
 
 import java.nio.ByteBuffer;
 import java.util.*;
@@ -215,17 +216,8 @@ public class QpidAndesBridge {
             if (log.isDebugEnabled()) {
                 log.debug("ack received for message id= " + messageID + " channelId= " + channelID);
             }
-            AndesSubscription ackSentSubscription = AndesContext.getInstance().
-                    getSubscriptionStore().getLocalSubscriptionForChannelId(channelID);
-            if (ackSentSubscription == null) {
-                //TODO : if an ack came here after subscription is closed, should we discard message?
-                log.error("Cannot handle Ack. Subscription is null for channel= " + channelID + "Message Destination= "
-                        + routingKey);
-                return;
-            }
-
             //This can be different from routing key in hierarchical topic case
-            AndesAckData andesAckData = AMQPUtils.generateAndesAckMessage(channelID, messageID);
+            AndesAckData andesAckData = AndesUtils.generateAndesAckMessage(channelID, messageID);
             Andes.getInstance().ackReceived(andesAckData);
 
         } catch (AndesException e) {
@@ -242,8 +234,9 @@ public class QpidAndesBridge {
      */
     public static void rejectMessage(AMQMessage message, AMQChannel channel) throws AMQException {
         try {
-            DeliverableAndesMetadata rejectedMessage = OnflightMessageTracker.getInstance().getTrackingData(message
-                    .getMessageId());
+            LocalSubscription localSubscription = AndesContext.getInstance().
+                    getSubscriptionStore().getLocalSubscriptionForChannelId(channel.getId());
+            DeliverableAndesMetadata rejectedMessage = localSubscription.getMessageByMessageID(message.getMessageId());
 
             log.debug("AMQP BRIDGE: rejected message id= " + rejectedMessage.getMessageID()
                     + " channel = " + channel.getId());
@@ -458,7 +451,7 @@ public class QpidAndesBridge {
         List<Binding> bindingList = queue.getBindings();
         if (bindingList != null && !bindingList.isEmpty()) {
             Set<AndesBinding> uniqueBindings = new HashSet<AndesBinding>();
-            List<InboundSubscriptionEvent> alreadyAddedSubscriptions = new ArrayList<InboundSubscriptionEvent>();
+            List<InboundSubscriptionEvent> alreadyAddedSubscriptions = new ArrayList<>();
 
             // Iterate unique bindings of the queue and add subscription entries.
             try {
@@ -470,9 +463,10 @@ public class QpidAndesBridge {
 
                     AndesBinding andesBinding = AMQPUtils.createAndesBinding(b.getExchange(), b.getQueue(), new AMQShortString(b.getBindingKey()));
                     if (uniqueBindings.add(andesBinding)) {
-                        InboundSubscriptionEvent localSubscription = AMQPUtils.createAMQPLocalSubscription(queue, subscription, b);
-                        Andes.getInstance().openLocalSubscription(localSubscription);
-                        alreadyAddedSubscriptions.add(localSubscription);
+                        LocalSubscription localSubscription = AMQPUtils.createAMQPLocalSubscription(queue, subscription, b);
+                        InboundSubscriptionEvent subscriptionEvent = new InboundSubscriptionEvent(localSubscription);
+                        Andes.getInstance().openLocalSubscription(subscriptionEvent);
+                        alreadyAddedSubscriptions.add(subscriptionEvent);
                     }
                 }
             } catch (AndesException e) {
@@ -506,8 +500,9 @@ public class QpidAndesBridge {
 
                 AndesBinding andesBinding = AMQPUtils.createAndesBinding(b.getExchange(), b.getQueue(), new AMQShortString(b.getBindingKey()));
                 if (uniqueBindings.add(andesBinding)) {
-                    InboundSubscriptionEvent localSubscription = AMQPUtils.createAMQPLocalSubscription(queue, subscription, b);
-                    Andes.getInstance().closeLocalSubscription(localSubscription);
+                    LocalSubscription localSubscription = AMQPUtils.createAMQPLocalSubscription(queue, subscription, b);
+                    InboundSubscriptionEvent subscriptionEvent = new InboundSubscriptionEvent(localSubscription);
+                    Andes.getInstance().closeLocalSubscription(subscriptionEvent);
                 }
             }
         }

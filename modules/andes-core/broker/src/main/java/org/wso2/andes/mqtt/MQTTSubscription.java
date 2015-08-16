@@ -44,10 +44,7 @@ public class MQTTSubscription {
      * Specifies the channel id of the subscriber
      */
     private String subscriberChannelID;
-    /**
-     * Specifies the storage identifier of the subscription
-     */
-    private String storageIdentifier;
+
     /**
      * Specifies the subscription channel
      */
@@ -74,7 +71,7 @@ public class MQTTSubscription {
      * value - message information {@link org.wso2.andes.mqtt.MQTTSubscriptionInformation}
      */
     private Map<Long, MQTTSubscriptionInformation> clusterMessageToMessageInformation =
-            new ConcurrentHashMap<Long, MQTTSubscriptionInformation>();
+            new ConcurrentHashMap<>();
 
     /**
      * Will add the details of the message that will be delivered among the topicOccurrences
@@ -166,23 +163,6 @@ public class MQTTSubscription {
         this.subscriptionChannel = subscriptionChannel;
     }
 
-    /**
-     * The storage representation of the message
-     *
-     * @return the storage name where the message would be represented
-     */
-    public String getStorageIdentifier() {
-        return storageIdentifier;
-    }
-
-    /**
-     * The storage representation of the subscription
-     *
-     * @param storageIdentifier the identification of the storage representation
-     */
-    public void setStorageIdentifier(String storageIdentifier) {
-        this.storageIdentifier = storageIdentifier;
-    }
 
     /**
      * Will allow retrieval of the unique identifier of the subscriber

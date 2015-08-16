@@ -18,15 +18,11 @@
 
 package org.wso2.andes.subscription;
 
-import org.apache.commons.lang.builder.HashCodeBuilder;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.wso2.andes.AMQException;
 import org.wso2.andes.amqp.AMQPUtils;
-import org.wso2.andes.configuration.AndesConfigurationManager;
-import org.wso2.andes.configuration.enums.AndesConfiguration;
 import org.wso2.andes.kernel.*;
-import org.wso2.andes.kernel.disruptor.inbound.InboundSubscriptionEvent;
 import org.wso2.andes.server.AMQChannel;
 import org.wso2.andes.server.message.AMQMessage;
 import org.wso2.andes.server.queue.AMQQueue;
@@ -37,72 +33,49 @@ import org.wso2.andes.server.subscription.SubscriptionImpl;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicInteger;
+
 
 /**
  * This class represents a AMQP subscription locally created
  * This class has info and methods to deal with qpid AMQP transports and
  * send messages to the subscription
  */
-public class AMQPLocalSubscription extends InboundSubscriptionEvent {
+public class AMQPLocalSubscription implements OutboundSubscription {
 
     private static Log log = LogFactory.getLog(AMQPLocalSubscription.class);
+
     //AMQP transport channel subscriber is dealing with
     AMQChannel channel = null;
+
     //internal qpid queue subscription is bound to
     private AMQQueue amqQueue;
+
     //internal qpid subscription
     private Subscription amqpSubscription;
-    /**
-     * Whether subscription is bound to topic or not
-     */
-    private boolean isBoundToTopic;
-    /**
-     * Whether subscription is durable or not
-     */
+
+    //if this subscription is a durable one
     private boolean isDurable;
-    /**
-     * List of Delivery Rules to evaluate
-     */
-    private List<DeliveryRule> deliveryRulesList = new ArrayList<DeliveryRule>();
 
-    /**
-     * Count sent but not acknowledged message count for channel of the subscriber
-     */
-    private AtomicInteger unAckedMsgCount = new AtomicInteger(0);
+    //if this subscription represent a topic subscription
+    private  boolean isBoundToTopic;
 
-    private Integer maxNumberOfUnAckedMessages = 100000;
+    //List of Delivery Rules to evaluate
+    private List<DeliveryRule> deliveryRulesList = new ArrayList<>();
 
-    /**
-     * Map to track messages being sent <message id, MsgData reference>
-     */
-    private final ConcurrentHashMap<Long, DeliverableAndesMetadata> messageSendingTracker
-            = new ConcurrentHashMap<Long, DeliverableAndesMetadata>();
 
-    public AMQPLocalSubscription(AMQQueue amqQueue, Subscription amqpSubscription, String subscriptionID, String destination,
-                                 boolean isBoundToTopic, boolean isExclusive, boolean isDurable,
-                                 String subscribedNode, long subscribeTime, String targetQueue, String targetQueueOwner,
-                                 String targetQueueBoundExchange, String targetQueueBoundExchangeType,
-                                 Short isTargetQueueBoundExchangeAutoDeletable, boolean hasExternalSubscriptions) {
-
-        super(subscriptionID, destination, isBoundToTopic, isExclusive, isDurable, subscribedNode, subscribeTime, targetQueue, targetQueueOwner,
-                targetQueueBoundExchange, targetQueueBoundExchangeType, isTargetQueueBoundExchangeAutoDeletable, hasExternalSubscriptions);
-
-        this.maxNumberOfUnAckedMessages = AndesConfigurationManager.readValue
-                (AndesConfiguration.PERFORMANCE_TUNING_ACK_HANDLING_MAX_UNACKED_MESSAGES);
-
-        setSubscriptionType(SubscriptionType.AMQP);
+    public AMQPLocalSubscription(AMQQueue amqQueue, Subscription amqpSubscription, boolean isDurable, boolean
+            isBoundToTopic) {
 
         this.amqQueue = amqQueue;
         this.amqpSubscription = amqpSubscription;
-        this.isBoundToTopic = isBoundToTopic;
-        this.isDurable = isDurable;
 
         if (amqpSubscription != null && amqpSubscription instanceof SubscriptionImpl.AckSubscription) {
             channel = ((SubscriptionImpl.AckSubscription) amqpSubscription).getChannel();
             initializeDeliveryRules();
         }
+
+        this.isDurable = isDurable;
+        this.isBoundToTopic = isBoundToTopic;
     }
 
     /**
@@ -136,47 +109,11 @@ public class AMQPLocalSubscription extends InboundSubscriptionEvent {
         return channel.getId();
     }
 
-    @Override
-    public boolean hasRoomToAcceptMessages() {
-
-        int notAcknowledgedMsgCount = unAckedMsgCount.get();
-        if (notAcknowledgedMsgCount < maxNumberOfUnAckedMessages) {
-            return true;
-        } else {
-
-            if (log.isDebugEnabled()) {
-                log.debug(
-                        "Not selected. Too much pending acks, subscription = " + this + " pending count =" +
-                                (notAcknowledgedMsgCount));
-            }
-
-            return false;
-        }
-    }
-
-    @Override
-    public void ackReceived(long messageID) {
-        messageSendingTracker.remove(messageID);
-        unAckedMsgCount.decrementAndGet();
-    }
-
-    @Override
-    public void msgRejectReceived(long messageID) {
-        messageSendingTracker.remove(messageID);
-        unAckedMsgCount.decrementAndGet();
-    }
-
-    @Override
-    public void close() {
-        messageSendingTracker.clear();
-        unAckedMsgCount.set(0);
-    }
-
     /**
      * {@inheritDoc}
      */
     @Override
-    public void sendMessageToSubscriber(DeliverableAndesMetadata messageMetadata, AndesContent content)
+    public boolean sendMessageToSubscriber(DeliverableAndesMetadata messageMetadata, AndesContent content)
             throws AndesException {
 
         AMQMessage message = AMQPUtils.getAMQMessageForDelivery(messageMetadata, content);
@@ -190,21 +127,11 @@ public class AMQPLocalSubscription extends InboundSubscriptionEvent {
                 messageToSend.setRedelivered();
             }
             sendMessage(messageToSend);
-
+            return true;
 
         } else {
             messageMetadata.markDeliveryRuleEvaluation(getChannelID(), false);
-            String destinationQueue = messageMetadata.getDestination();
-            // Move message to DLC
-            // All the Queues and Durable Topics related messages are adding to DLC
-            if ((!isBoundToTopic) || isDurable){
-                messageSendingTracker.remove(messageMetadata.getMessageID());
-                MessagingEngine.getInstance().moveMessageToDeadLetterChannel(messageMetadata.getMessageID(), destinationQueue);
-            } else { //for topic messages we forget that the message is sent to that subscriber
-                log.warn("Delivery rule evaluation failed. Forgetting message id= " + messageMetadata.getMessageID()
-                        + " for subscriber " + subscriptionID);
-                messageMetadata.removeScheduledDeliveryChannel(getChannelID());
-            }
+            return false;
         }
     }
 
@@ -227,24 +154,6 @@ public class AMQPLocalSubscription extends InboundSubscriptionEvent {
         return isOKToDelivery;
     }
 
-    /**
-     * Add message to sending tracker which keeps messages delivered to this channel
-     * @param messageID ID of the message to add
-     */
-    private void addMessageToSendingTracker(long messageID) {
-
-        if (log.isDebugEnabled()) {
-            log.debug("Adding message to sending tracker channel id = " + getChannelID() + " message id = "
-                    + messageID);
-        }
-
-        DeliverableAndesMetadata messageData = messageSendingTracker.get(messageID);
-
-        if (null == messageData) {
-            messageData = OnflightMessageTracker.getInstance().getTrackingData(messageID);
-            messageSendingTracker.put(messageID, messageData);
-        }
-    }
 
     /**
      * write message to channel
@@ -258,8 +167,6 @@ public class AMQPLocalSubscription extends InboundSubscriptionEvent {
         Long messageNumber = queueEntry.getMessage().getMessageNumber();
 
         try {
-
-            unAckedMsgCount.incrementAndGet();
 
             if (amqpSubscription instanceof SubscriptionImpl.AckSubscription) {
                 if (log.isDebugEnabled()) {
@@ -283,26 +190,4 @@ public class AMQPLocalSubscription extends InboundSubscriptionEvent {
         }
     }
 
-
-    public boolean equals(Object o) {
-        if (o instanceof AMQPLocalSubscription) {
-            AMQPLocalSubscription c = (AMQPLocalSubscription) o;
-            if (this.subscriptionID.equals(c.subscriptionID) &&
-                    this.getSubscribedNode().equals(c.getSubscribedNode()) &&
-                    this.targetQueue.equals(c.targetQueue) &&
-                    this.targetQueueBoundExchange.equals(c.targetQueueBoundExchange)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    public int hashCode() {
-        return new HashCodeBuilder(17, 31).
-                append(subscriptionID).
-                append(getSubscribedNode()).
-                append(targetQueue).
-                append(targetQueueBoundExchange).
-                toHashCode();
-    }
 }

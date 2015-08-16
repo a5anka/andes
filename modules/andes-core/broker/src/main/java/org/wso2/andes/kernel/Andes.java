@@ -34,6 +34,7 @@ import org.wso2.andes.kernel.disruptor.inbound.InboundTransactionEvent;
 import org.wso2.andes.kernel.disruptor.inbound.PubAckHandler;
 import org.wso2.andes.kernel.slot.Slot;
 import org.wso2.andes.metrics.MetricsConstants;
+import org.wso2.andes.subscription.LocalSubscription;
 import org.wso2.andes.subscription.SubscriptionStore;
 import org.wso2.andes.tools.utils.MessageTracer;
 import org.wso2.carbon.metrics.manager.Level;
@@ -182,15 +183,17 @@ public class Andes {
      * @throws AndesException
      */
     public void ackReceived(AndesAckData ackData) throws AndesException {
-        inboundEventManager.ackReceived(ackData);
 
         //Tracing Message
         MessageTracer.trace(ackData.getAcknowledgedMessage().getMessageID(), ackData.getAcknowledgedMessage()
-                        .getDestination(), MessageTracer.ACK_RECEIVED_FROM_PROTOCOL);
+                .getDestination(), MessageTracer.ACK_RECEIVED_FROM_PROTOCOL);
 
         //Adding metrics meter for ack rate
         Meter ackMeter = MetricManager.meter(Level.INFO, MetricsConstants.ACK_RECEIVE_RATE);
         ackMeter.mark();
+
+        //We call this later as this call removes the ackData.getAcknowledgedMessage() message
+        inboundEventManager.ackReceived(ackData);
     }
 
     /**

@@ -22,6 +22,7 @@ import com.lmax.disruptor.EventHandler;
 import org.apache.log4j.Logger;
 import org.wso2.andes.kernel.*;
 import org.wso2.andes.metrics.MetricsConstants;
+import org.wso2.andes.subscription.LocalSubscription;
 import org.wso2.andes.tools.utils.MessageTracer;
 import org.wso2.carbon.metrics.manager.Level;
 import org.wso2.carbon.metrics.manager.Meter;

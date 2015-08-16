@@ -21,6 +21,7 @@ package org.wso2.andes.kernel;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.wso2.andes.kernel.slot.Slot;
+import org.wso2.andes.subscription.LocalSubscription;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -63,17 +64,6 @@ public class DeliverableAndesMetadata extends AndesMessageMetadata{
     public DeliverableAndesMetadata(Slot slot, long messageID, byte[] metadata, boolean parse) {
         super(messageID, metadata, parse);
         this.slot = slot;
-        this.timeMessageIsRead = System.currentTimeMillis();
-        this.channelDeliveryInfo = new ConcurrentHashMap<>();
-        this.messageStatus = Collections.synchronizedList(new ArrayList<MessageStatus>());
-        this.messageStatus.add(MessageStatus.READ);
-        this.numberOfScheduledDeliveries = new AtomicInteger(0);
-    }
-
-    //TODO: need to remove this constructor
-    public DeliverableAndesMetadata(AndesMessageMetadata messageMetadata) {
-        super((messageMetadata.messageID), messageMetadata.metadata, true);
-        this.slot = null;
         this.timeMessageIsRead = System.currentTimeMillis();
         this.channelDeliveryInfo = new ConcurrentHashMap<>();
         this.messageStatus = Collections.synchronizedList(new ArrayList<MessageStatus>());
@@ -202,12 +192,17 @@ public class DeliverableAndesMetadata extends AndesMessageMetadata{
         }
         channelDeliveryInfo.put(channelID, channelInformation);
 
-        boolean isDeliveredToAllChannels = isMarkAsDelivered();
+        //we evaluate sent to all only when its state is "SCHEDULED"
+        if(getLatestState().equals(MessageStatus.SCHEDULED_TO_SEND)) {
+            boolean isDeliveredToAllChannels = isMarkAsDelivered();
 
-        if(isDeliveredToAllChannels) {
-            addMessageStatus(MessageStatus.SENT_TO_ALL);
+            if(isDeliveredToAllChannels) {
+                addMessageStatus(MessageStatus.SENT_TO_ALL);
+            }
+            return deliveryCount;
+        } else {
+            return 0;
         }
-        return deliveryCount;
     }
 
     /**

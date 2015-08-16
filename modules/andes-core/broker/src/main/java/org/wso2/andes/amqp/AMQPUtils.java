@@ -43,6 +43,9 @@ import org.wso2.andes.server.store.StorableMessageMetaData;
 import org.wso2.andes.server.subscription.Subscription;
 import org.wso2.andes.store.StoredAMQPMessage;
 import org.wso2.andes.subscription.AMQPLocalSubscription;
+import org.wso2.andes.subscription.LocalSubscription;
+import org.wso2.andes.subscription.OutboundSubscription;
+import org.wso2.andes.subscription.SubscriptionStore;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -208,7 +211,8 @@ public class AMQPUtils {
      * @throws AndesException
      */
     //in order to tell if this is a queue subscription or a topic subscription, binding is needed
-    public static InboundSubscriptionEvent createAMQPLocalSubscription(AMQQueue queue, Subscription subscription, Binding b) throws AndesException {
+    public static LocalSubscription createAMQPLocalSubscription(AMQQueue queue, Subscription subscription, Binding b) throws
+            AndesException {
 
         String subscriptionID = String.valueOf(subscription.getSubscriptionID());
         Exchange exchange = b.getExchange();
@@ -252,9 +256,13 @@ public class AMQPUtils {
             subscriptionID = queue.getName();
         }
 
-        AMQPLocalSubscription localSubscription = new AMQPLocalSubscription(queue,
-                subscription, subscriptionID, destination, isBoundToTopic, queue.isExclusive(), queue.isDurable(),
-                subscribedNode, subscribeTime, queue.getName(), queueOwner, queueBoundExchangeName, queueBoundExchangeType, isqueueBoundExchangeAutoDeletable, subscription.isActive());
+        OutboundSubscription amqpDeliverySubscription = new AMQPLocalSubscription(queue, subscription, queue
+                .isDurable(), isBoundToTopic);
+
+        LocalSubscription localSubscription = AndesUtils.createLocalSubscription(amqpDeliverySubscription,
+                subscriptionID, destination, isBoundToTopic, queue.isExclusive(), queue.isDurable(),
+                subscribedNode, subscribeTime, queue.getName(), queueOwner, queueBoundExchangeName,
+                queueBoundExchangeType, isqueueBoundExchangeAutoDeletable, subscription.isActive());
 
         return localSubscription;
     }
@@ -349,17 +357,6 @@ public class AMQPUtils {
         }
 
         return messagePart;
-    }
-
-    /**
-     * create andes ack data message
-     * @param channelID id of the connection message was received
-     * @param messageID id of the message
-     * @return Andes Ack Data
-     */
-    public static AndesAckData generateAndesAckMessage(UUID channelID, long messageID) {
-        DeliverableAndesMetadata metadata = OnflightMessageTracker.getInstance().getTrackingData(messageID);
-        return new AndesAckData(channelID, metadata);
     }
 
     /**
