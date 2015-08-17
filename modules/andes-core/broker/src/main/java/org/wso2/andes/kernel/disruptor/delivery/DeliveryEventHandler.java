@@ -85,9 +85,6 @@ public class DeliveryEventHandler implements EventHandler<DeliveryEventData> {
                 if (subscription.isActive()) {
                     subscription.sendMessageToSubscriber(message, deliveryEventData.getAndesContent());
 
-                    //Mark the message as sent to the subscriber
-                    message.markAsDeliveredToChannel(subscription.getChannelID());
-
                     //Tracing Message
                     MessageTracer.trace(message, MessageTracer.DISPATCHED_TO_PROTOCOL);
 

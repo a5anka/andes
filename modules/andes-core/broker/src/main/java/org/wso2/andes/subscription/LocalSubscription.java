@@ -112,15 +112,21 @@ public class LocalSubscription  extends BasicSubscription implements InboundSubs
      */
     public boolean sendMessageToSubscriber(DeliverableAndesMetadata messageMetadata, AndesContent content) throws
             AndesException {
+
+        //It is needed to add the message reference to the tracker and increase un-ack message count BEFORE
+        // actual message send because if it is not done ack can come BEFORE executing those lines in parallel world
+        addMessageToSendingTracker(messageMetadata);
+        unAcknowledgedMsgCount.incrementAndGet();
         boolean sendSuccess = subscription.sendMessageToSubscriber(messageMetadata, content);
         if(sendSuccess) {
-            addMessageToSendingTracker(messageMetadata);
-            unAcknowledgedMsgCount.incrementAndGet();
             return true;
         } else {
-            // Move message to DLC
-            // All the Queues and Durable Topics related messages are adding to DLC
+            //Send failed. Rollback changes done that assumed send would be success
             messageMetadata.markDeliveryFailureOfASentMessage(getChannelID());
+            unAcknowledgedMsgCount.decrementAndGet();
+            messageSendingTracker.remove(messageMetadata.getMessageID());
+
+            // All the Queues and Durable Topics related messages are adding to DLC
             if ((!isBoundToTopic) || isDurable){
                 String destinationQueue = messageMetadata.getDestination();
                 MessagingEngine.getInstance().moveMessageToDeadLetterChannel(messageMetadata.getMessageID(), destinationQueue);
@@ -186,6 +192,10 @@ public class LocalSubscription  extends BasicSubscription implements InboundSubs
      */
     public void ackReceived(long messageID) throws AndesException{
         messageSendingTracker.remove(messageID);
+        if(log.isDebugEnabled()) {
+            log.debug("Ack. Removed message reference. Message Id = "
+                    + messageID + " subscriptionID= " + subscriptionID);
+        }
         unAcknowledgedMsgCount.decrementAndGet();
     }
 
@@ -194,6 +204,10 @@ public class LocalSubscription  extends BasicSubscription implements InboundSubs
      */
     public void msgRejectReceived(long messageID) throws AndesException{
         messageSendingTracker.remove(messageID);
+        if(log.isDebugEnabled()) {
+            log.debug("Reject. Removed message reference. Message Id = "
+                    + messageID + " subscriptionID= " + subscriptionID);
+        }
         unAcknowledgedMsgCount.decrementAndGet();
     }
 
@@ -235,6 +249,10 @@ public class LocalSubscription  extends BasicSubscription implements InboundSubs
 
         if (null == messageDataToAdd) {
             messageSendingTracker.put(messageData.getMessageID(), messageData);
+            if(log.isDebugEnabled()) {
+                log.debug("Added message reference. Message Id = "
+                        + messageData.getMessageID() + " subscriptionID= " + subscriptionID);
+            }
         }
     }
 
