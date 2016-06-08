@@ -23,7 +23,6 @@ import org.wso2.andes.kernel.AndesAckData;
 import org.wso2.andes.kernel.AndesChannel;
 import org.wso2.andes.kernel.AndesException;
 import org.wso2.andes.kernel.AndesMessage;
-import org.wso2.andes.kernel.slot.SlotMessageCounter;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -207,7 +206,8 @@ public class InboundEventContainer {
      * Execute a slot submit event with recovery message id
      */
     private void executeRecoveryEvent() {
-        SlotMessageCounter.getInstance().sendRecoverySlotSubmit(getRecoveryEventMessageId());
+        // TODO: need to change implementaion to match the new algorithm
+//        SlotMessageCounter.getInstance().sendRecoverySlotSubmit(getRecoveryEventMessageId());
     }
 
     public void setStateEvent(AndesInboundStateEvent stateEvent) {

@@ -29,7 +29,6 @@ import org.wso2.andes.kernel.AndesContext;
 import org.wso2.andes.kernel.AndesContextStore;
 import org.wso2.andes.kernel.AndesException;
 import org.wso2.andes.kernel.slot.SlotManagerClusterMode;
-import org.wso2.andes.kernel.slot.SlotMessageCounter;
 import org.wso2.andes.server.ClusterResourceHolder;
 import org.wso2.andes.server.cluster.coordination.CoordinationConstants;
 import org.wso2.andes.store.FailureObservingStoreManager;
@@ -81,10 +80,22 @@ public class ClusterManager implements StoreHealthListener{
     public static final int SLOT_SUBMIT_TASK_POOL_SIZE = 1;
 
     /**
+     * Time between successive slot submit scheduled tasks.
+     * <p>
+     * In a slow message publishing scenario, this is the delay for each message for delivery.
+     * For instance if we publish one message per minute then each message will have to wait
+     * till this timeout before the messages are submitted to the slot coordinator.
+     */
+    public final int SLOT_SUBMIT_TIMEOUT;
+
+    /**
      * Create a ClusterManager instance
      */
     public ClusterManager() {
         this.andesContextStore = AndesContext.getInstance().getAndesContextStore();
+
+        SLOT_SUBMIT_TIMEOUT = AndesConfigurationManager
+                .readValue(AndesConfiguration.PERFORMANCE_TUNING_SUBMIT_SLOT_TIMER_PERIOD);
     }
 
     /**
@@ -143,7 +154,7 @@ public class ClusterManager implements StoreHealthListener{
                 public void run() {
                     Andes.getInstance().triggerRecoveryEvent();
                 }
-            }, SlotMessageCounter.getInstance().SLOT_SUBMIT_TIMEOUT, TimeUnit.MILLISECONDS);
+            }, SLOT_SUBMIT_TIMEOUT, TimeUnit.MILLISECONDS);
         }
 
         // Deactivate durable subscriptions belonging to the node

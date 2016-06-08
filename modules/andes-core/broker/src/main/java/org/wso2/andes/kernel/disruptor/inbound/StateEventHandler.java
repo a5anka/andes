@@ -26,7 +26,6 @@ import org.wso2.andes.kernel.AndesException;
 import org.wso2.andes.kernel.AndesMessage;
 import org.wso2.andes.kernel.DeliverableAndesMetadata;
 import org.wso2.andes.kernel.MessageStatus;
-import org.wso2.andes.kernel.slot.SlotMessageCounter;
 import org.wso2.andes.metrics.MetricsConstants;
 import org.wso2.andes.tools.utils.MessageTracer;
 import org.wso2.carbon.metrics.core.Level;
@@ -92,7 +91,8 @@ public class StateEventHandler implements EventHandler<InboundEventContainer> {
     private void updateSlotDeleteSafeZone(InboundEventContainer event) {
 
         long currentSafeZoneVal = event.getSafeZoneLimit();
-        SlotMessageCounter.getInstance().updateSafeZoneForNode(currentSafeZoneVal);
+        // TODO: this is no longer required
+//        SlotMessageCounter.getInstance().updateSafeZoneForNode(currentSafeZoneVal);
     }
 
     /**
@@ -105,7 +105,7 @@ public class StateEventHandler implements EventHandler<InboundEventContainer> {
         List<AndesMessage> messageList = eventContainer.getMessageList();
         // update last message ID in slot message counter. When the slot is filled the last message
         // ID of the slot will be submitted to the slot manager by SlotMessageCounter
-        SlotMessageCounter.getInstance().recordMetadataCountInSlot(messageList);
+//        SlotMessageCounter.getInstance().recordMetadataCountInSlot(messageList);
 
         for (AndesMessage message : messageList) {
             //Tracing Message

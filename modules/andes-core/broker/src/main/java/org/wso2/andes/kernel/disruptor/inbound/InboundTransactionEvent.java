@@ -26,7 +26,6 @@ import org.wso2.andes.kernel.AndesException;
 import org.wso2.andes.kernel.AndesMessage;
 import org.wso2.andes.kernel.AndesMessageMetadata;
 import org.wso2.andes.kernel.MessagingEngine;
-import org.wso2.andes.kernel.slot.SlotMessageCounter;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -95,8 +94,7 @@ public class InboundTransactionEvent implements AndesInboundStateEvent {
 
     /**
      * Check whether messages are stored to DB for the current transaction. If this is true that means
-     * messages are stored in DB but {@link org.wso2.andes.kernel.slot.SlotMessageCounter} is not
-     * updated completely.
+     * messages are stored in DB but is not updated completely.
      */
     private boolean messagesStoredNotCommitted;
 
@@ -308,7 +306,8 @@ public class InboundTransactionEvent implements AndesInboundStateEvent {
         try {
             messagesStoredNotCommitted = true;
             // update slot information for transaction related messages
-            SlotMessageCounter.getInstance().recordMetadataCountInSlot(getQueuedMessages());
+            // TODO: confirm whether we don't require this anymore
+            // SlotMessageCounter.getInstance().recordMetadataCountInSlot(getQueuedMessages());
             messageQueue.clear();
             messagesStoredNotCommitted = false; // Once slots are updated rolling back is irrelevant.
             currentBatchSize = 0;
