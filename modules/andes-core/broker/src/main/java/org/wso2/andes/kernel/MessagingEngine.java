@@ -198,7 +198,7 @@ public class MessagingEngine {
      */
     public void messagesReceived(List<AndesMessage> messageList) throws AndesException {
         Map<String, List<AndesMessage>> queueToMsgsMap = messageList.stream().collect(Collectors.groupingBy(
-                (AndesMessage m) -> m.getMetadata().getDestination()));
+                (AndesMessage m) -> m.getMetadata().getStorageQueueName()));
 
         for (String targetQueueName : queueToMsgsMap.keySet()) {
 //            long slotId = localSlotManager.getSlotId(targetQueueName, queueToMsgsMap.get(targetQueueName).size());
