@@ -83,7 +83,6 @@ public class RDBMSConstants {
     // Message Store tables
     protected static final String CONTENT_TABLE = "MB_CONTENT";
     protected static final String METADATA_TABLE = "MB_METADATA";
-    protected static final String METADATA_TABLE_NEW = "MB_METADATA_NEW";
     protected static final String QUEUES_TABLE = "MB_QUEUE_MAPPING";
     protected static final String EXPIRATION_TABLE = "MB_EXPIRATION_DATA";
     protected static final String MSG_STORE_STATUS_TABLE = "MB_MSG_STORE_STATUS";
@@ -166,7 +165,7 @@ public class RDBMSConstants {
      * into the dead letter channel
      */
     protected static final String PS_INSERT_METADATA_NEW =
-            "INSERT INTO " + METADATA_TABLE_NEW + " ("
+            "INSERT INTO " + METADATA_TABLE + " ("
                     + INSTANCE_ID + ","
                     + SLOT_ID + ","
                     + MESSAGE_ID + ","
@@ -197,16 +196,6 @@ public class RDBMSConstants {
             "SELECT COUNT(" + QUEUE_ID + ") AS " + PS_ALIAS_FOR_COUNT
             + " FROM " + METADATA_TABLE
             + " WHERE " + QUEUE_ID + "=?"
-            + " AND " + DLC_QUEUE_ID + "=-1";
-
-    /**
-     * Prepared statement to retrieve message count within a message id range for a queue.
-     */
-    protected static final String PS_SELECT_RANGED_QUEUE_MESSAGE_COUNT =
-            "SELECT COUNT(" + MESSAGE_ID + ") AS " + PS_ALIAS_FOR_COUNT
-            + " FROM " + METADATA_TABLE
-            + " WHERE " + QUEUE_ID + "=?"
-            + " AND " + MESSAGE_ID + " BETWEEN ? AND ?"
             + " AND " + DLC_QUEUE_ID + "=-1";
 
     protected static final String ALIAS_FOR_QUEUES = "QUEUE_COUNT";
@@ -244,18 +233,10 @@ public class RDBMSConstants {
 
     protected static final String PS_SELECT_METADATA_RANGE_FROM_QUEUE =
             "SELECT " + MESSAGE_ID + "," + METADATA
-            + " FROM " + METADATA_TABLE_NEW
+            + " FROM " + METADATA_TABLE
             + " WHERE " + QUEUE_ID + "=?"
             + " AND " + DLC_QUEUE_ID + "=-1"
             + " AND " + SLOT_ID + " = ?"
-            + " ORDER BY " + MESSAGE_ID;
-
-    protected static final String PS_SELECT_METADATA_RANGE_FROM_QUEUE_IN_DLC =
-            "SELECT " + MESSAGE_ID + "," + METADATA
-            + " FROM " + METADATA_TABLE
-            + " WHERE " + QUEUE_ID + "=?"
-            + " AND " + DLC_QUEUE_ID + "=?"
-            + " AND " + MESSAGE_ID + " BETWEEN ? AND ?"
             + " ORDER BY " + MESSAGE_ID;
 
     protected static final String PS_SELECT_METADATA_FROM_QUEUE =
@@ -274,20 +255,20 @@ public class RDBMSConstants {
             + " AND " + DLC_QUEUE_ID + "=-1"
             + " ORDER BY " + MESSAGE_ID;
     
-    protected static final String PS_SELECT_METADATA_IN_DLC_FOR_QUEUE =
-            "SELECT " + MESSAGE_ID + "," + METADATA
-            + " FROM " + METADATA_TABLE
-            + " WHERE " + MESSAGE_ID + ">?"
-            + " AND " + QUEUE_ID + "=?"
-            + " AND " + DLC_QUEUE_ID + "=?"
-            + " ORDER BY " + MESSAGE_ID;
+//    protected static final String PS_SELECT_METADATA_IN_DLC_FOR_QUEUE =
+//            "SELECT " + MESSAGE_ID + "," + METADATA
+//            + " FROM " + METADATA_TABLE
+//            + " WHERE " + MESSAGE_ID + ">?"
+//            + " AND " + QUEUE_ID + "=?"
+//            + " AND " + DLC_QUEUE_ID + "=?"
+//            + " ORDER BY " + MESSAGE_ID;
 
-    protected static final String PS_SELECT_METADATA_IN_DLC =
-            "SELECT " + MESSAGE_ID + "," + METADATA
-            + " FROM " + METADATA_TABLE
-            + " WHERE " + MESSAGE_ID + ">?"
-            + " AND " + DLC_QUEUE_ID + "=?"
-            + " ORDER BY " + MESSAGE_ID;
+//    protected static final String PS_SELECT_METADATA_IN_DLC =
+//            "SELECT " + MESSAGE_ID + "," + METADATA
+//            + " FROM " + METADATA_TABLE
+//            + " WHERE " + MESSAGE_ID + ">?"
+//            + " AND " + DLC_QUEUE_ID + "=?"
+//            + " ORDER BY " + MESSAGE_ID;
 
     protected static final String PS_SELECT_MESSAGE_IDS_FROM_METADATA_FOR_QUEUE =
             "SELECT " + MESSAGE_ID
@@ -310,7 +291,7 @@ public class RDBMSConstants {
             + " AND " + DLC_QUEUE_ID + "!=-1";
 
     protected static final String PS_DELETE_METADATA =
-            "DELETE  FROM " + METADATA_TABLE_NEW
+            "DELETE  FROM " + METADATA_TABLE
             + " WHERE " + MESSAGE_ID + "=?"
             + " AND " + DLC_QUEUE_ID + "=-1";
 
