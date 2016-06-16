@@ -29,6 +29,8 @@ import org.wso2.andes.kernel.AndesSubscription;
 import org.wso2.andes.kernel.DurableStoreConnection;
 import org.wso2.andes.kernel.ProtocolType;
 import org.wso2.andes.kernel.slot.Slot;
+import org.wso2.andes.kernel.slot.SlotPartData;
+import org.wso2.andes.kernel.slot.StoredSlotPartData;
 import org.wso2.andes.kernel.slot.SlotState;
 import org.wso2.andes.metrics.MetricsConstants;
 import org.wso2.andes.store.AndesDataIntegrityViolationException;
@@ -37,11 +39,11 @@ import org.wso2.carbon.metrics.core.Level;
 import org.wso2.carbon.metrics.core.MetricManager;
 import org.wso2.carbon.metrics.core.Timer;
 
-import javax.sql.DataSource;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -49,6 +51,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
+import javax.sql.DataSource;
+
+import static org.wso2.andes.store.rdbms.RDBMSConstants.PS_INSERT_SLOT_NEW;
+import static org.wso2.andes.store.rdbms.RDBMSConstants.PS_UPDATE_SLOT_PART_ASSIGNMENT;
 
 /**
  * ANSI SQL based Andes Context Store implementation. This is used to persist information of
@@ -1120,6 +1126,59 @@ public class RDBMSAndesContextStoreImpl implements AndesContextStore {
      * {@inheritDoc}
      */
     @Override
+    public long createSlot(List<SlotPartData> slotPartList, String storageQueueName, String nodeId) throws AndesException {
+
+        Connection connection = null;
+        PreparedStatement createSlotPS = null;
+        PreparedStatement updateSlotAssignmentPS = null;
+
+        try {
+
+            connection = getConnection();
+            createSlotPS = connection.prepareStatement(PS_INSERT_SLOT_NEW, Statement.RETURN_GENERATED_KEYS);
+            updateSlotAssignmentPS = connection.prepareStatement(PS_UPDATE_SLOT_PART_ASSIGNMENT);
+
+            createSlotPS.setString(1, storageQueueName);
+            createSlotPS.setString(2, nodeId);
+
+            createSlotPS.executeUpdate();
+            ResultSet generatedKeys = createSlotPS.getGeneratedKeys();
+            long newSlotId;
+            if (generatedKeys.next()) {
+                newSlotId = generatedKeys.getLong(1);
+            } else {
+                throw new AndesException("Slot Id generation was not successful");
+            }
+
+            for (SlotPartData slotPartData : slotPartList) {
+                updateSlotAssignmentPS.setLong(1, newSlotId);
+                updateSlotAssignmentPS.setLong(2, slotPartData.getPartId());
+                updateSlotAssignmentPS.setLong(3, slotPartData.getInstanceId());
+                updateSlotAssignmentPS.addBatch();
+            }
+
+            updateSlotAssignmentPS.executeBatch();
+
+            connection.commit();
+
+            return newSlotId;
+        } catch (SQLException e) {
+            String errMsg =
+                    RDBMSConstants.TASK_CREATE_SLOT + " storageQueueName:" + storageQueueName + " assignedNodeId:" + nodeId;
+            rollback(connection, RDBMSConstants.TASK_CREATE_SLOT);
+            throw rdbmsStoreUtils.convertSQLException("Error occurred while " + errMsg, e);
+        } finally {
+            close(createSlotPS, RDBMSConstants.TASK_CREATE_SLOT);
+            close(updateSlotAssignmentPS, RDBMSConstants.TASK_CREATE_SLOT);
+            close(connection, RDBMSConstants.TASK_CREATE_SLOT);
+        }
+    }
+
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
     public boolean deleteSlot(long slotId) throws AndesException {
         Connection connection = null;
         PreparedStatement deleteNonOverlappingSlotPS = null;
@@ -1944,7 +2003,7 @@ public class RDBMSAndesContextStoreImpl implements AndesContextStore {
     }
 
     @Override
-    public void createSlot(long instanceID, long slotId, String storageQueue, int messageCount) throws AndesException {
+    public void createSlotPart(long instanceID, long slotId, String storageQueue, int messageCount) throws AndesException {
 
         Connection connection = null;
         PreparedStatement preparedStatement = null;
@@ -1954,7 +2013,7 @@ public class RDBMSAndesContextStoreImpl implements AndesContextStore {
             connection = getConnection();
 
             preparedStatement =
-                    connection.prepareStatement(RDBMSConstants.PS_INSERT_SLOT_NEW);
+                    connection.prepareStatement(RDBMSConstants.PS_INSERT_SLOT_PART);
             preparedStatement.setLong(1, instanceID);
             preparedStatement.setLong(2, slotId);
             preparedStatement.setString(3, storageQueue);
@@ -1974,26 +2033,31 @@ public class RDBMSAndesContextStoreImpl implements AndesContextStore {
         }
     }
 
-    public long getFreshSlot(String queueName, String nodeId) throws AndesException {
+    public List<StoredSlotPartData> getFreshSlot(String queueName) throws AndesException {
         Connection connection = null;
         PreparedStatement preparedStatement = null;
         ResultSet resultSet = null;
-        long slotId;
+        List<StoredSlotPartData> slotPartList = new ArrayList<>(10);
 
         try {
             connection = getConnection();
 
             preparedStatement =
-                    connection.prepareStatement(RDBMSConstants.PS_SELECT_FRESH_SLOT);
+                    connection.prepareStatement(RDBMSConstants.PS_SELECT_FRESH_SLOT_PARTS);
             preparedStatement.setString(1, queueName);
             resultSet = preparedStatement.executeQuery();
 
-            if (resultSet.next()) {
-                slotId = resultSet.getLong(1);
-            } else {
-                slotId = -1;
+            while (resultSet.next()) {
+                long sequenceId = resultSet.getLong(1);
+                long partId = resultSet.getLong(2);
+                long instanceId = resultSet.getLong(3);
+                int messageCount  = resultSet.getInt(4);
+
+                StoredSlotPartData newSlotPart = new StoredSlotPartData(sequenceId, partId, instanceId, -1, queueName, messageCount);
+                slotPartList.add(newSlotPart);
             }
-            return slotId;
+
+            return slotPartList;
 
         } catch (SQLException e) {
             String errMsg =

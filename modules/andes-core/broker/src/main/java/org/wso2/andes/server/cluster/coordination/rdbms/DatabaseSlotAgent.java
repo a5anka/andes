@@ -21,22 +21,26 @@ package org.wso2.andes.server.cluster.coordination.rdbms;
 import com.google.common.util.concurrent.SettableFuture;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-
 import org.wso2.andes.kernel.AndesContext;
 import org.wso2.andes.kernel.AndesContextStore;
 import org.wso2.andes.kernel.AndesException;
 import org.wso2.andes.kernel.slot.Slot;
+import org.wso2.andes.kernel.slot.SlotData;
+import org.wso2.andes.kernel.slot.SlotPartData;
 import org.wso2.andes.kernel.slot.SlotState;
+import org.wso2.andes.kernel.slot.StoredSlotPartData;
 import org.wso2.andes.server.cluster.coordination.SlotAgent;
 import org.wso2.andes.store.AndesDataIntegrityViolationException;
 import org.wso2.andes.store.AndesStoreUnavailableException;
+import org.wso2.andes.store.FailureObservingStoreManager;
 import org.wso2.andes.store.HealthAwareStore;
 import org.wso2.andes.store.StoreHealthListener;
-import org.wso2.andes.store.FailureObservingStoreManager;
 
+import java.util.Collections;
 import java.util.HashSet;
-import java.util.TreeSet;
+import java.util.List;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.concurrent.ExecutionException;
 
 /**
@@ -96,6 +100,25 @@ public class DatabaseSlotAgent implements SlotAgent, StoreHealthListener {
                 handleFailure(attemptCount, task, e);
             }
         }
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public SlotData createSlot(List<SlotPartData> slotPartList, String storageQueueName, String nodeId)
+            throws AndesException {
+        String task = "create slot for queue: " + storageQueueName + " and node: " + nodeId;
+
+        for (int attemptCount = 1; attemptCount <= MAX_STORE_FAILURE_TOLERANCE_COUNT; attemptCount++) {
+            waitUntilStoresBecomeAvailable(task);
+            try {
+                long slotId = andesContextStore.createSlot(slotPartList, storageQueueName, nodeId);
+                return new SlotData(slotId, slotPartList);
+            } catch (AndesStoreUnavailableException e) {
+                handleFailure(attemptCount, task, e);
+            }
+        }
+        return SlotData.EMPTY_SLOT;
     }
 
     /**
@@ -641,20 +664,20 @@ public class DatabaseSlotAgent implements SlotAgent, StoreHealthListener {
         messageStoresUnavailable = SettableFuture.create();
     }
 
-    public long getFreshSlot(String queueName, String nodeId) throws AndesException{
+    public List<StoredSlotPartData> getUnassignedSlotParts(String queueName) throws AndesException{
         String task = "New slot creation";
-        long slotId = -1;
+        List<StoredSlotPartData> slotParts = Collections.emptyList();
 
         for (int attemptCount = 1; attemptCount <= MAX_STORE_FAILURE_TOLERANCE_COUNT; attemptCount++) {
             waitUntilStoresBecomeAvailable(task);
             try {
-                slotId = andesContextStore.getFreshSlot(queueName, nodeId);
+                slotParts = andesContextStore.getFreshSlot(queueName);
                 break;
             } catch (AndesStoreUnavailableException e) {
                 handleFailure(attemptCount, task, e);
             }
         }
 
-        return slotId;
+        return slotParts;
     }
 }

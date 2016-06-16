@@ -22,8 +22,12 @@ package org.wso2.andes.server.cluster.coordination;
 
 import org.wso2.andes.kernel.AndesException;
 import org.wso2.andes.kernel.slot.Slot;
+import org.wso2.andes.kernel.slot.SlotData;
+import org.wso2.andes.kernel.slot.SlotPartData;
+import org.wso2.andes.kernel.slot.StoredSlotPartData;
 import org.wso2.andes.kernel.slot.SlotState;
 
+import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
 
@@ -39,6 +43,11 @@ public interface SlotAgent {
 	void createSlot(long startMessageId, long endMessageId,
 						   String storageQueueName, String assignedNodeId)
 							throws AndesException;
+
+	/**
+	 * Create a slot
+	 */
+	SlotData createSlot(List<SlotPartData> slotPartList, String storageQueueName, String nodeId) throws AndesException;
 
 	/**
 	 * Delete a slot from database
@@ -235,5 +244,5 @@ public interface SlotAgent {
 	 */
 	void clearSlotStorage() throws AndesException;
 
-	long getFreshSlot(String queueName, String nodeId) throws AndesException;
+	List<StoredSlotPartData> getUnassignedSlotParts(String queueName) throws AndesException;
 }

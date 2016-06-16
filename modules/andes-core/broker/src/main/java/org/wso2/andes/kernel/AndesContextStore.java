@@ -20,6 +20,8 @@ package org.wso2.andes.kernel;
 
 import org.wso2.andes.configuration.util.ConfigurationProperties;
 import org.wso2.andes.kernel.slot.Slot;
+import org.wso2.andes.kernel.slot.SlotPartData;
+import org.wso2.andes.kernel.slot.StoredSlotPartData;
 import org.wso2.andes.kernel.slot.SlotState;
 import org.wso2.andes.store.HealthAwareStore;
 import org.wso2.andes.subscription.BasicSubscription;
@@ -251,12 +253,24 @@ public interface AndesContextStore extends HealthAwareStore{
 
      * @param startMessageId start message id of slot
      * @param endMessageId end message id of slot
+     * @param assignedNodeId id of assigned node
+     * @param slotPartList
+     *@param storageQueueName name of storage queue name  @throws AndesException
+     */
+    long createSlot(List<SlotPartData> slotPartList, String storageQueueName, String nodeId)
+		    throws AndesException;
+
+    /**
+     * Create a new slot in store.
+
+     * @param startMessageId start message id of slot
+     * @param endMessageId end message id of slot
      * @param storageQueueName name of storage queue name
      * @param assignedNodeId id of assigned node
      * @throws AndesException
      */
     void createSlot(long startMessageId, long endMessageId, String storageQueueName, String assignedNodeId)
-		    throws AndesException;
+            throws AndesException;
 
     /**
      * Delete a slot from store.
@@ -459,7 +473,7 @@ public interface AndesContextStore extends HealthAwareStore{
      */
     void removeProtocolType(ProtocolType protocolType);
 
-    void createSlot(long instanceID, long slotId, String storageQueue, int messageCount) throws AndesException;
+    void createSlotPart(long instanceID, long slotId, String storageQueue, int messageCount) throws AndesException;
 
-    long getFreshSlot(String queueName, String nodeId) throws AndesException;
+    List<StoredSlotPartData> getFreshSlot(String queueName) throws AndesException;
 }

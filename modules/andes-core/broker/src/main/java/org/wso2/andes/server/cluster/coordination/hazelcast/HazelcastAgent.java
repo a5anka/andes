@@ -34,10 +34,10 @@ import org.wso2.andes.configuration.AndesConfigurationManager;
 import org.wso2.andes.configuration.enums.AndesConfiguration;
 import org.wso2.andes.kernel.AndesContext;
 import org.wso2.andes.kernel.AndesException;
-import org.wso2.andes.kernel.AndesRecoveryTask;
-import org.wso2.andes.kernel.AndesSubscriptionManager;
-import org.wso2.andes.kernel.HazelcastLifecycleListener;
 import org.wso2.andes.kernel.slot.Slot;
+import org.wso2.andes.kernel.slot.SlotData;
+import org.wso2.andes.kernel.slot.SlotPartData;
+import org.wso2.andes.kernel.slot.StoredSlotPartData;
 import org.wso2.andes.kernel.slot.SlotState;
 import org.wso2.andes.kernel.slot.SlotUtils;
 import org.wso2.andes.server.cluster.HazelcastClusterAgent;
@@ -500,6 +500,13 @@ public class HazelcastAgent implements SlotAgent {
     public void createSlot(long startMessageId, long endMessageId, String storageQueueName, String assignedNodeId)
             throws AndesException {
         //createSlot() method in Hazelcast agent does not need to perform anything
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public SlotData createSlot(List<SlotPartData> slotPartList, String storageQueueName, String nodeId) throws AndesException  {
+        throw new NotImplementedException();
     }
 
     /**
@@ -1089,7 +1096,7 @@ public class HazelcastAgent implements SlotAgent {
         config.addRingBufferConfig(ringConfig);
     }
 
-    public long getFreshSlot(String queueName, String nodeId) {
+    public List<StoredSlotPartData> getUnassignedSlotParts(String queueName) {
         throw new NotImplementedException();
     }
 

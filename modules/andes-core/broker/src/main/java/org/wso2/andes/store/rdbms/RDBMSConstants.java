@@ -114,6 +114,7 @@ public class RDBMSConstants {
     // Slot related tables
     protected static final String SLOT_TABLE = "MB_SLOT";
     protected static final String SLOT_TABLE_NEW = "MB_SLOT_NEW";
+    protected static final String SLOT_PART_TABLE = "MB_SLOT_PART";
     protected static final String SLOT_MESSAGE_ID_TABLE = "MB_SLOT_MESSAGE_ID";
     protected static final String QUEUE_TO_LAST_ASSIGNED_ID = "MB_QUEUE_TO_LAST_ASSIGNED_ID";
 
@@ -139,6 +140,8 @@ public class RDBMSConstants {
 
     //Slot table columns
     protected static final String SLOT_ID = "SLOT_ID";
+    protected static final String SLOT_PART_ID = "SLOT_PART_ID";
+    protected static final String SEQUENCE_ID = "SEQUENCE_ID";
     protected static final String START_MESSAGE_ID = "START_MESSAGE_ID";
     protected static final String END_MESSAGE_ID = "END_MESSAGE_ID";
     protected static final String STORAGE_QUEUE_NAME = "STORAGE_QUEUE_NAME";
@@ -167,7 +170,7 @@ public class RDBMSConstants {
     protected static final String PS_INSERT_METADATA_NEW =
             "INSERT INTO " + METADATA_TABLE + " ("
                     + INSTANCE_ID + ","
-                    + SLOT_ID + ","
+                    + SLOT_PART_ID + ","
                     + MESSAGE_ID + ","
                     + QUEUE_ID + ","
                     + DLC_QUEUE_ID + ","
@@ -233,11 +236,12 @@ public class RDBMSConstants {
 
     protected static final String PS_SELECT_METADATA_RANGE_FROM_QUEUE =
             "SELECT " + MESSAGE_ID + "," + METADATA
-            + " FROM " + METADATA_TABLE
-            + " WHERE " + QUEUE_ID + "=?"
-            + " AND " + DLC_QUEUE_ID + "=-1"
-            + " AND " + SLOT_ID + " = ?"
-            + " ORDER BY " + MESSAGE_ID;
+                    + " FROM " + METADATA_TABLE
+                    + " WHERE " + QUEUE_ID + "=?"
+                    + " AND " + DLC_QUEUE_ID + "=-1"
+                    + " AND " + SLOT_PART_ID + " = ?"
+                    + " AND " + INSTANCE_ID + " = ?"
+                    + " ORDER BY " + MESSAGE_ID;
 
     protected static final String PS_SELECT_METADATA_FROM_QUEUE =
             "SELECT " + MESSAGE_ID + "," + METADATA
@@ -510,14 +514,13 @@ public class RDBMSConstants {
     /**
      * Prepared statement to create a new slot in database
      */
-    protected static final String PS_INSERT_SLOT_NEW =
-            "INSERT INTO " + SLOT_TABLE_NEW + " ("
+    protected static final String PS_INSERT_SLOT_PART =
+            "INSERT INTO " + SLOT_PART_TABLE + " ("
                     + INSTANCE_ID + ","
-                    + SLOT_ID + ","
+                    + SLOT_PART_ID + ","
                     + STORAGE_QUEUE_NAME + ","
-                    + MESSAGE_COUNT + ","
-                    + SLOT_STATE + ")"
-                    + " VALUES (?,?,?,?," + SlotState.CREATED.getCode() + ")";
+                    + MESSAGE_COUNT + ")"
+                    + " VALUES (?,?,?,?" + ")";
 
     /**
      * Prepared statement to delete a slot from database
@@ -541,6 +544,25 @@ public class RDBMSConstants {
             + " SET " + ASSIGNED_NODE_ID + "=?, "
             + SLOT_STATE + "=" + SlotState.ASSIGNED.getCode()
             + " WHERE " + SLOT_ID + "=?";
+
+    /**
+     * Prepared statement to create a new slot in database
+     */
+    protected static final String PS_INSERT_SLOT_NEW =
+            "INSERT INTO " + SLOT_TABLE_NEW + " ("
+                    + STORAGE_QUEUE_NAME + ","
+                    + ASSIGNED_NODE_ID + ","
+                    + SLOT_STATE + ")"
+                    + " VALUES (?,?," + SlotState.ASSIGNED.getCode() + ")";
+
+    /**
+     * Prepared statement to assign a slot to node
+     */
+    protected static final String PS_UPDATE_SLOT_PART_ASSIGNMENT =
+            "UPDATE " + SLOT_PART_TABLE
+                    + " SET " + SLOT_ID + "=? "
+                    + " WHERE " + SLOT_PART_ID + "=?"
+                    + " AND " + INSTANCE_ID + "=?";
 
     /**
      * Prepared statement to un-assign a slot from node
@@ -602,13 +624,13 @@ public class RDBMSConstants {
             + " WHERE " + STORAGE_QUEUE_NAME + " =?"
             + " ORDER BY " + SLOT_ID;
 
-    protected static final String PS_SELECT_FRESH_SLOT =
-            "SELECT " + SLOT_ID
-                    + " FROM " + SLOT_TABLE_NEW
+    protected static final String PS_SELECT_FRESH_SLOT_PARTS =
+            "SELECT " + SEQUENCE_ID + "," + SLOT_PART_ID + "," + INSTANCE_ID + "," + MESSAGE_COUNT
+                    + " FROM " + SLOT_PART_TABLE
                     + " WHERE " + STORAGE_QUEUE_NAME + " = ?"
-                    + " AND " + SLOT_STATE + " = " + SlotState.CREATED.getCode()
-                    + " ORDER BY " + SLOT_ID
-                    + " LIMIT 1";
+                    + " AND " + SLOT_ID + " IS NULL"
+                    + " ORDER BY " + SEQUENCE_ID
+                    + " LIMIT 10";
 
     protected static final String PS_SELECT_UNASSIGNED_SLOT =
             "SELECT " + START_MESSAGE_ID + "," + END_MESSAGE_ID + "," + STORAGE_QUEUE_NAME

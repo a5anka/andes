@@ -18,6 +18,16 @@ struct SlotInfo {
     
 }
 
+struct SlotDataHolder {
+    1: i64 slotId;
+    2: list<SlotPart> slotPartList;
+}
+
+struct SlotPart {
+    1: i64 instanceId;
+    2: i64 slotPartId;
+}
+
 /*
     the services provided to update and get information of slots in slotImp manager
 */
@@ -26,7 +36,7 @@ service SlotManagementService {
     */
     SlotInfo getSlotInfo(1: string queueName, 2: string nodeId),
 
-    i64 getSlotId(1: string queueName, 2: string nodeId),
+   SlotDataHolder getSlotId(1: string queueName, 2: string nodeId),
 
     /* The updateMessageId operation is to update the message ID in the coordinator after chunk of messages are published.
     *  In addition, the coordinator will check if the received slot overlaps with any existing,assigned slots, 

@@ -31,11 +31,18 @@ import org.wso2.andes.configuration.enums.AndesConfiguration;
 import org.wso2.andes.kernel.slot.ConnectionException;
 import org.wso2.andes.kernel.slot.Slot;
 import org.wso2.andes.kernel.slot.SlotCoordinationConstants;
+import org.wso2.andes.kernel.slot.SlotData;
 import org.wso2.andes.kernel.slot.SlotDeliveryWorkerManager;
+import org.wso2.andes.kernel.slot.SlotPartData;
 import org.wso2.andes.server.cluster.coordination.hazelcast.HazelcastAgent;
 import org.wso2.andes.thrift.exception.ThriftClientException;
+import org.wso2.andes.thrift.slot.gen.SlotDataHolder;
 import org.wso2.andes.thrift.slot.gen.SlotInfo;
 import org.wso2.andes.thrift.slot.gen.SlotManagementService;
+import org.wso2.andes.thrift.slot.gen.SlotPart;
+
+import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * A wrapper client for the native thrift client. All the public methods in this class are
@@ -99,19 +106,19 @@ public class MBThriftClient {
      * @return slot object
      * @throws ConnectionException
      */
-    public static synchronized long getSlotId(String queueName,
+    public static synchronized SlotData getSlotId(String queueName,
             String nodeId) throws ConnectionException {
-        long slotId;
+        SlotData slot;
         try {
             client = getServiceClient();
-            slotId = client.getSlotId(queueName, nodeId);
-            return slotId;
+            slot = convertToSlotData(client.getSlotId(queueName, nodeId));
+            return slot;
         } catch (TException e) {
             try {
                 //retry once
                 reConnectToServer();
-                slotId = client.getSlotId(queueName, nodeId);
-                return slotId;
+                slot = convertToSlotData(client.getSlotId(queueName, nodeId));
+                return slot;
             } catch (TException e1) {
                 handleCoordinatorChanges();
                 throw new ConnectionException("Coordinator has changed", e);
@@ -122,6 +129,19 @@ public class MBThriftClient {
             throw new ConnectionException("Error occurred in thrift client " + e.getMessage(), e);
         }
     }
+
+    private static SlotData convertToSlotData(SlotDataHolder slotDataHolder) throws TException {
+        if (-1 == slotDataHolder.getSlotId()) {
+            return SlotData.EMPTY_SLOT;
+        }
+
+        List<SlotPart> slotPartList = slotDataHolder.getSlotPartList();
+        List<SlotPartData> convertedSlotParts = slotPartList.stream()
+                .map(partData -> new SlotPartData(partData.getSlotPartId(), partData.getInstanceId()))
+                .collect(Collectors.toList());
+        return new SlotData(slotDataHolder.getSlotId(), convertedSlotParts);
+    }
+
     /**
      * Convert SlotInfo object to Slot object
      *

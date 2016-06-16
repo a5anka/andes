@@ -44,7 +44,7 @@ public class SlotCoordinatorStandalone implements SlotCoordinator {
     }
 
     @Override
-    public long getSlotId(String queueName) throws ConnectionException {
+    public SlotData getSlotId(String queueName) throws ConnectionException {
         throw new NotImplementedException();
     }
 

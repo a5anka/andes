@@ -28,6 +28,8 @@ import org.wso2.andes.kernel.AndesSubscription;
 import org.wso2.andes.kernel.DurableStoreConnection;
 import org.wso2.andes.kernel.ProtocolType;
 import org.wso2.andes.kernel.slot.Slot;
+import org.wso2.andes.kernel.slot.SlotPartData;
+import org.wso2.andes.kernel.slot.StoredSlotPartData;
 import org.wso2.andes.kernel.slot.SlotState;
 import org.wso2.andes.subscription.BasicSubscription;
 
@@ -484,6 +486,25 @@ public class FailureObservingAndesContextStore implements AndesContextStore {
     }
 
     /**
+     * Create a new slot in store
+     *
+     * @param startMessageId   start message id of slot
+     * @param endMessageId     end message id of slot
+     * @param assignedNodeId Node id of assigned node
+     * @param slotPartList
+     *@param storageQueueName name of storage queue name  @throws AndesException
+     */
+    @Override
+    public long createSlot(List<SlotPartData> slotPartList, String storageQueueName, String nodeId) throws AndesException {
+        try {
+            return wrappedAndesContextStoreInstance.createSlot(slotPartList, storageQueueName, nodeId);
+        } catch (AndesStoreUnavailableException exception) {
+            notifyFailures(exception);
+            throw exception;
+        }
+    }
+
+    /**
      * Delete a slot from store
      *
      * @param startMessageId start message id of slot
@@ -867,12 +888,12 @@ public class FailureObservingAndesContextStore implements AndesContextStore {
     }
 
     @Override
-    public void createSlot(long instanceID, long slotId, String storageQueue, int messageCount) throws AndesException {
-        wrappedAndesContextStoreInstance.createSlot(instanceID, slotId, storageQueue, messageCount);
+    public void createSlotPart(long instanceID, long slotId, String storageQueue, int messageCount) throws AndesException {
+        wrappedAndesContextStoreInstance.createSlotPart(instanceID, slotId, storageQueue, messageCount);
     }
 
-    public long getFreshSlot(String queueName, String nodeId) throws AndesException {
-        return wrappedAndesContextStoreInstance.getFreshSlot(queueName, nodeId);
+    public List<StoredSlotPartData> getFreshSlot(String queueName) throws AndesException {
+        return wrappedAndesContextStoreInstance.getFreshSlot(queueName);
     }
 
 }

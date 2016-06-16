@@ -22,9 +22,16 @@ import org.apache.thrift.TException;
 import org.wso2.andes.kernel.AndesContext;
 import org.wso2.andes.kernel.AndesException;
 import org.wso2.andes.kernel.slot.Slot;
+import org.wso2.andes.kernel.slot.SlotData;
 import org.wso2.andes.kernel.slot.SlotManagerClusterMode;
+import org.wso2.andes.kernel.slot.SlotPartData;
+import org.wso2.andes.thrift.slot.gen.SlotDataHolder;
 import org.wso2.andes.thrift.slot.gen.SlotInfo;
 import org.wso2.andes.thrift.slot.gen.SlotManagementService;
+import org.wso2.andes.thrift.slot.gen.SlotPart;
+
+import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * This is the implementation of SlotManagementService interface. This class contains operations
@@ -56,19 +63,27 @@ public class SlotManagementServiceImpl implements SlotManagementService.Iface {
     }
 
     @Override
-    public long getSlotId(String queueName, String nodeId) throws TException {
-        long slotId;
+    public SlotDataHolder getSlotId(String queueName, String nodeId) throws TException {
+        SlotDataHolder slotDataHolder;
 
         if (AndesContext.getInstance().getClusterAgent().isCoordinator()) {
             try {
-                slotId = slotManager.getSlotId(queueName, nodeId);
+                SlotData slotFromManager = slotManager.getSlotId(queueName, nodeId);
+
+                List<SlotPartData> partDataList = slotFromManager.getPartDataList();
+                List<SlotPart> convertedSlotPartList = partDataList
+                        .stream()
+                        .map(a -> new SlotPart(a.getInstanceId(), a.getPartId()))
+                        .collect(Collectors.toList());
+
+                slotDataHolder = new SlotDataHolder(slotFromManager.getSlotId(), convertedSlotPartList);
             } catch (AndesException e) {
                 throw new TException("Failed to get slot info for queue: " + queueName + " nodeId: " + nodeId, e);
             }
         } else {
             throw new TException("This node is not the slot coordinator right now");
         }
-        return slotId;
+        return slotDataHolder;
     }
 
     @Override

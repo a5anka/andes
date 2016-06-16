@@ -36,7 +36,7 @@ import org.wso2.andes.kernel.AndesMessagePart;
 import org.wso2.andes.kernel.DeliverableAndesMetadata;
 import org.wso2.andes.kernel.DurableStoreConnection;
 import org.wso2.andes.kernel.MessageStore;
-import org.wso2.andes.kernel.slot.Slot;
+import org.wso2.andes.kernel.slot.SlotPartData;
 import org.wso2.andes.metrics.MetricsConstants;
 import org.wso2.andes.server.queue.DLCQueueUtils;
 import org.wso2.andes.store.AndesDataIntegrityViolationException;
@@ -93,6 +93,18 @@ public class RDBMSMessageStoreImpl implements MessageStore {
             "SELECT " + MESSAGE_CONTENT + ", " + MESSAGE_ID + ", " + MSG_OFFSET +
                     " FROM " + CONTENT_TABLE +
                     " WHERE " + MESSAGE_ID + " IN (";
+
+    private static final String PS_SELECT_METADATA_START = "SELECT " +  MESSAGE_ID + "," + METADATA
+            + " FROM " + METADATA_TABLE + " WHERE " + DLC_QUEUE_ID + "=-1"
+            + " AND (";
+
+    private static final String PS_SELECT_METADATA_ITER = "(" + SLOT_PART_ID + " = ?"
+            + " AND " + INSTANCE_ID + " = ?)";
+
+    private static final String SQL_OR = " OR ";
+
+    private static final String PS_SELECT_METADATA_END = ")";
+
 
     /**
      * The cache which holds the queue mappings(queue name to queue id) in memory
@@ -787,7 +799,7 @@ public class RDBMSMessageStoreImpl implements MessageStore {
      * {@inheritDoc}
      */
     @Override
-    public List<DeliverableAndesMetadata> getMetadataList(long slot, final String storageQueueName) throws AndesException {
+    public List<DeliverableAndesMetadata> getMetadataList(List<SlotPartData> slot, final String storageQueueName) throws AndesException {
 
         List<DeliverableAndesMetadata> metadataList = new ArrayList<>();
         Connection connection = null;
@@ -800,9 +812,25 @@ public class RDBMSMessageStoreImpl implements MessageStore {
 
         try {
             connection = getConnection();
-            preparedStatement = connection.prepareStatement(RDBMSConstants.PS_SELECT_METADATA_RANGE_FROM_QUEUE);
-            preparedStatement.setInt(1, getCachedQueueID(storageQueueName));
-            preparedStatement.setLong(2, slot);
+
+            StringBuilder queryBuilder = new StringBuilder(PS_SELECT_METADATA_START);
+
+            queryBuilder.append(PS_SELECT_METADATA_ITER);
+
+            for (int i = 0; i < slot.size() - 1; i++) {
+                queryBuilder.append(SQL_OR + PS_SELECT_METADATA_ITER);
+            }
+
+            queryBuilder.append(PS_SELECT_METADATA_END);
+
+            preparedStatement = connection.prepareStatement(queryBuilder.toString());
+
+            int i = 1;
+            for (SlotPartData slotPartData : slot) {
+                preparedStatement.setLong((i * 2) - 1, slotPartData.getPartId());
+                preparedStatement.setLong(i * 2 , slotPartData.getInstanceId());
+                i++;
+            }
 
             resultSet = preparedStatement.executeQuery();
             while (resultSet.next()) {

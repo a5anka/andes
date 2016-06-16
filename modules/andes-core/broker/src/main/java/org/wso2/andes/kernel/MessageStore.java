@@ -19,7 +19,7 @@ package org.wso2.andes.kernel;
 import com.gs.collections.impl.list.mutable.primitive.LongArrayList;
 import com.gs.collections.impl.map.mutable.primitive.LongObjectHashMap;
 import org.wso2.andes.configuration.util.ConfigurationProperties;
-import org.wso2.andes.kernel.slot.Slot;
+import org.wso2.andes.kernel.slot.SlotPartData;
 import org.wso2.andes.store.HealthAwareStore;
 
 import java.util.List;
@@ -126,13 +126,11 @@ public interface MessageStore extends HealthAwareStore {
     /**
      * read a metadata list from store specifying a message id range
      *
-     * @param storageQueueName name of the queue messages are stored
-     * @param firstMsgId       first id of the range
-     * @param lastMsgID        last id of the range
-     * @return list of metadata
+     * @param slot
+     * @param storageQueueName name of the queue messages are stored  @return list of metadata
      * @throws AndesException
      */
-    List<DeliverableAndesMetadata> getMetadataList(long slot, final String storageQueueName) throws AndesException;
+    List<DeliverableAndesMetadata> getMetadataList(List<SlotPartData> slot, final String storageQueueName) throws AndesException;
 
     /**
      * read  a metadata list from store specifying a starting message id and a count

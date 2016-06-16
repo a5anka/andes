@@ -22,10 +22,10 @@ import org.apache.log4j.Logger;
 import org.wso2.andes.configuration.AndesConfigurationManager;
 import org.wso2.andes.configuration.enums.AndesConfiguration;
 import org.wso2.andes.kernel.slot.ConnectionException;
-import org.wso2.andes.kernel.slot.Slot;
 import org.wso2.andes.kernel.slot.SlotCoordinator;
 import org.wso2.andes.kernel.slot.SlotCoordinatorCluster;
 import org.wso2.andes.kernel.slot.SlotCoordinatorStandalone;
+import org.wso2.andes.kernel.slot.SlotData;
 import org.wso2.andes.kernel.slot.SlotDeliveryWorkerManager;
 import org.wso2.andes.kernel.slot.SlotManagerClusterMode;
 import org.wso2.andes.kernel.slot.SlotManagerStandalone;
@@ -204,7 +204,7 @@ public class MessagingEngine {
 //            long slotId = localSlotManager.getSlotId(targetQueueName, queueToMsgsMap.get(targetQueueName).size());
             long slotId = generateUniqueId();
             messageStore.storeMessages(instanceID, slotId, messageList);
-            contextStore.createSlot(instanceID, slotId, targetQueueName, queueToMsgsMap.get(targetQueueName).size());
+            contextStore.createSlotPart(instanceID, slotId, targetQueueName, queueToMsgsMap.get(targetQueueName).size());
         }
     }
 
@@ -574,14 +574,14 @@ public class MessagingEngine {
     /**
      * Get message metadata from queue between two message id values
      *
-     * @param queueName  queue name
      * @param firstMsgId id of the starting id
      * @param lastMsgID  id of the last id
-     * @return List of message metadata
+     * @param slot
+     *@param queueName  queue name  @return List of message metadata
      * @throws AndesException
      */
-    public List<DeliverableAndesMetadata> getMetaDataList(final long slot, final String queueName) throws AndesException {
-        return messageStore.getMetadataList(slot, queueName);
+    public List<DeliverableAndesMetadata> getMetaDataList(final SlotData slot, final String queueName) throws AndesException {
+        return messageStore.getMetadataList(slot.getPartDataList(), queueName);
     }
 
     /**

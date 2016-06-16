@@ -29,13 +29,14 @@ import org.wso2.andes.server.cluster.coordination.SlotAgent;
 import org.wso2.andes.server.cluster.coordination.hazelcast.HazelcastAgent;
 import org.wso2.andes.server.cluster.coordination.rdbms.DatabaseSlotAgent;
 
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -51,6 +52,7 @@ public class SlotManagerClusterMode {
     private static final SlotManagerClusterMode slotManager = new SlotManagerClusterMode();
 
     private static final int SAFE_ZONE_EVALUATION_INTERVAL = 5 * 1000;
+    private static final int MAX_SLOT_SIZE = 1000;
 
     //safe zone calculator
     private final SlotDeleteSafeZoneCalc slotDeleteSafeZoneCalc;
@@ -218,21 +220,40 @@ public class SlotManagerClusterMode {
      * @param queueName name of the queue slot is required
      * @return slot or null if cannot find
      */
-    private long getFreshSlotNew(String queueName, String nodeId) throws AndesException {
-        long slotId;
+    private SlotData getFreshSlotNew(String queueName, String nodeId) throws AndesException {
+        SlotData newSlot;
+
         String lockKey = queueName + SlotManagerClusterMode.class;
+
         synchronized (lockKey.intern()) {
             //get oldest unassigned slot from database
-            slotId = slotAgent.getFreshSlot(queueName, nodeId);
+            List<StoredSlotPartData> unassignedSlotParts = slotAgent.getUnassignedSlotParts(queueName);
 
-            if (log.isDebugEnabled()) {
-                if (-1 != slotId) {
-                    log.debug("Giving a slot from unassigned slots. Slot: " + slotId +
-                            " to queue: " + queueName);
+            if (!unassignedSlotParts.isEmpty()) {
+                List<SlotPartData> selectedParts = new ArrayList<>(unassignedSlotParts.size());
+                int count = 0;
+                for (StoredSlotPartData unassignedSlotPart : unassignedSlotParts) {
+                    count = count + unassignedSlotPart.getMessageCount();
+                    selectedParts.add(new SlotPartData(unassignedSlotPart.getPartId(), unassignedSlotPart.getInstanceId()));
+
+                    if (count >= MAX_SLOT_SIZE) {
+                        break;
+                    }
                 }
+
+                newSlot = slotAgent.createSlot(selectedParts, queueName, nodeId);
+
+                if (log.isDebugEnabled()) {
+                    if (!unassignedSlotParts.isEmpty()) {
+                        log.debug("Giving a slot from unassigned slots. Slot: " + unassignedSlotParts +
+                                " to queue: " + queueName);
+                    }
+                }
+            } else {
+                newSlot = SlotData.EMPTY_SLOT;
             }
         }
-        return slotId;
+        return newSlot;
     }
 
     /**
@@ -618,17 +639,14 @@ public class SlotManagerClusterMode {
         slotAgent.clearSlotStorage();
     }
 
-    public long getSlotId(String queueName, String nodeId) throws AndesException{
-        long slotId;
+    public SlotData getSlotId(String queueName, String nodeId) throws AndesException{
+        SlotData slotData;
 
         String lockKey = queueName + SlotManagerClusterMode.class;
         synchronized (lockKey.intern()) {
-            slotId = getFreshSlotNew(queueName, nodeId);
-            if (-1 != slotId) {
-                updateSlotAssignmentMap(queueName, slotId, nodeId);
-            }
+            slotData = getFreshSlotNew(queueName, nodeId);
         }
 
-        return slotId;
+        return slotData;
     }
 }

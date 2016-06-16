@@ -34,6 +34,7 @@ import org.wso2.andes.kernel.disruptor.inbound.InboundSubscriptionEvent;
 import org.wso2.andes.kernel.disruptor.inbound.InboundTransactionEvent;
 import org.wso2.andes.kernel.disruptor.inbound.PubAckHandler;
 import org.wso2.andes.kernel.slot.Slot;
+import org.wso2.andes.kernel.slot.SlotData;
 import org.wso2.andes.metrics.MetricsConstants;
 import org.wso2.andes.server.ClusterResourceHolder;
 import org.wso2.andes.server.resource.manager.AndesResourceManager;
@@ -571,7 +572,7 @@ public class Andes {
      * @return List of message metadata
      * @throws AndesException
      */
-    public List<DeliverableAndesMetadata> getMetaDataList(long slot, final String queueName) throws AndesException {
+    public List<DeliverableAndesMetadata> getMetaDataList(SlotData slot, final String queueName) throws AndesException {
         return messagingEngine.getMetaDataList(slot, queueName);
     }
 

@@ -29,7 +29,7 @@ import org.wso2.andes.kernel.AndesMessagePart;
 import org.wso2.andes.kernel.DeliverableAndesMetadata;
 import org.wso2.andes.kernel.DurableStoreConnection;
 import org.wso2.andes.kernel.MessageStore;
-import org.wso2.andes.kernel.slot.Slot;
+import org.wso2.andes.kernel.slot.SlotPartData;
 import org.wso2.andes.tools.utils.MessageTracer;
 
 import java.util.List;
@@ -198,7 +198,7 @@ public class FailureObservingMessageStore implements MessageStore {
      * {@inheritDoc}
      */
     @Override
-    public List<DeliverableAndesMetadata> getMetadataList(long slot, String storageQueueName) throws AndesException {
+    public List<DeliverableAndesMetadata> getMetadataList(List<SlotPartData> slot, String storageQueueName) throws AndesException {
         try {
             return wrappedInstance.getMetadataList(slot, storageQueueName);
         } catch (AndesStoreUnavailableException exception) {
