@@ -103,8 +103,7 @@ public class RDBMSMessageStoreImpl implements MessageStore {
 
     private static final String SQL_OR = " OR ";
 
-    private static final String PS_SELECT_METADATA_END = ")";
-
+    private static final String PS_SELECT_METADATA_END = ") ORDER BY " + MESSAGE_ID;
 
     /**
      * The cache which holds the queue mappings(queue name to queue id) in memory

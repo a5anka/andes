@@ -18,15 +18,12 @@
 
 package org.wso2.andes.kernel;
 
-import com.gs.collections.impl.map.mutable.ConcurrentHashMap;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-import org.wso2.andes.kernel.slot.SlotDeliveryWorker;
 import org.wso2.andes.subscription.LocalSubscription;
 import org.wso2.andes.tools.utils.MessageTracer;
 
 import java.util.Collection;
 import java.util.Iterator;
+import java.util.concurrent.ConcurrentSkipListMap;
 
 /**
  * Class to keep track of message delivery information used for delivery.
@@ -49,7 +46,7 @@ public class MessageDeliveryInfo {
      * In-memory message list scheduled to be delivered. These messages will be flushed
      * to subscriber.Used Map instead of Set because of https://wso2.org/jira/browse/MB-1624
      */
-    private ConcurrentHashMap<Long, DeliverableAndesMetadata> readButUndeliveredMessages = new ConcurrentHashMap<>();
+    private ConcurrentSkipListMap<Long, DeliverableAndesMetadata> readButUndeliveredMessages = new ConcurrentSkipListMap<>();
 
     /***
      * In case of a purge, we must store the timestamp when the purge was called.
