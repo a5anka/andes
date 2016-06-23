@@ -579,12 +579,11 @@ public class RDBMSConstants {
      * Prepared statement to un-assign slots assigned to a given queue
      */
     protected static final String PS_DELETE_SLOT_ASSIGNMENT_BY_QUEUE_NAME =
-            "UPDATE " + SLOT_TABLE
+            "UPDATE " + SLOT_TABLE_NEW
             + " SET " + ASSIGNED_NODE_ID + " = NULL, "
-            + ASSIGNED_QUEUE_NAME + " = NULL, "
             + SLOT_STATE + "=" + SlotState.RETURNED.getCode()
             + " WHERE " + ASSIGNED_NODE_ID + "= ?"
-            + " AND " + ASSIGNED_QUEUE_NAME + "= ?";
+            + " AND " + STORAGE_QUEUE_NAME + "= ?";
 
     /**
      * Prepared statement to get slots assigned to a give node
@@ -633,11 +632,14 @@ public class RDBMSConstants {
                     + " LIMIT 10";
 
     protected static final String PS_SELECT_UNASSIGNED_SLOT =
-            "SELECT " + START_MESSAGE_ID + "," + END_MESSAGE_ID + "," + STORAGE_QUEUE_NAME
-            + " FROM " + SLOT_TABLE
-            + " WHERE " + STORAGE_QUEUE_NAME + " =?"
-            + " AND " + SLOT_STATE + " = " + SlotState.RETURNED.getCode()
-            + " ORDER BY " + SLOT_ID;
+            "SELECT " + SLOT_PART_ID + "," + INSTANCE_ID + "," + SLOT_ID
+                    + " FROM " + SLOT_PART_TABLE
+                    + " WHERE " +  SLOT_ID
+                    + " = ( SELECT " + SLOT_ID
+                            + " FROM " + SLOT_TABLE_NEW
+                            + " WHERE " + STORAGE_QUEUE_NAME + " = ? AND "
+                                + SLOT_STATE + " = " + SlotState.RETURNED.getCode()
+                            +  " limit 1)";
 
     /**
      * Prepared statement for selecting oldest overlapped slot

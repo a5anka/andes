@@ -28,6 +28,7 @@ import org.wso2.andes.kernel.AndesSubscription;
 import org.wso2.andes.kernel.DurableStoreConnection;
 import org.wso2.andes.kernel.ProtocolType;
 import org.wso2.andes.kernel.slot.Slot;
+import org.wso2.andes.kernel.slot.SlotData;
 import org.wso2.andes.kernel.slot.SlotPartData;
 import org.wso2.andes.kernel.slot.StoredSlotPartData;
 import org.wso2.andes.kernel.slot.SlotState;
@@ -614,7 +615,7 @@ public class FailureObservingAndesContextStore implements AndesContextStore {
      * @throws AndesException
      */
     @Override
-    public Slot selectUnAssignedSlot(String queueName) throws AndesException {
+    public SlotData selectUnAssignedSlot(String queueName) throws AndesException {
         try {
             return wrappedAndesContextStoreInstance.selectUnAssignedSlot(queueName);
         } catch (AndesStoreUnavailableException exception) {

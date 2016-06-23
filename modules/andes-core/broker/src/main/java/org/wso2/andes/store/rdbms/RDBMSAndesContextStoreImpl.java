@@ -29,6 +29,7 @@ import org.wso2.andes.kernel.AndesSubscription;
 import org.wso2.andes.kernel.DurableStoreConnection;
 import org.wso2.andes.kernel.ProtocolType;
 import org.wso2.andes.kernel.slot.Slot;
+import org.wso2.andes.kernel.slot.SlotData;
 import org.wso2.andes.kernel.slot.SlotPartData;
 import org.wso2.andes.kernel.slot.StoredSlotPartData;
 import org.wso2.andes.kernel.slot.SlotState;
@@ -1390,11 +1391,11 @@ public class RDBMSAndesContextStoreImpl implements AndesContextStore {
      * {@inheritDoc}
      */
     @Override
-    public Slot selectUnAssignedSlot(String queueName) throws AndesException {
+    public SlotData selectUnAssignedSlot(String queueName) throws AndesException {
         Connection connection = null;
         PreparedStatement preparedStatement = null;
         ResultSet resultSet = null;
-        Slot unAssignedSlot = null;
+        SlotData unAssignedSlot;
 
         try {
             connection = getConnection();
@@ -1406,10 +1407,27 @@ public class RDBMSAndesContextStoreImpl implements AndesContextStore {
             resultSet = preparedStatement.executeQuery();
 
             if(resultSet.next()) {
-                unAssignedSlot = new Slot(SlotState.RETURNED);
-                unAssignedSlot.setStartMessageId(resultSet.getLong(RDBMSConstants.START_MESSAGE_ID));
-                unAssignedSlot.setEndMessageId(resultSet.getLong(RDBMSConstants.END_MESSAGE_ID));
-                unAssignedSlot.setStorageQueueName(resultSet.getString(RDBMSConstants.STORAGE_QUEUE_NAME));
+
+                ArrayList<SlotPartData> slotPartList = new ArrayList<>();
+
+                long partId = resultSet.getLong(1);
+                long instanceId = resultSet.getLong(2);
+                long slotId = resultSet.getLong(3);
+
+                SlotPartData newSlotPart = new SlotPartData(partId, instanceId);
+                slotPartList.add(newSlotPart);
+
+                while (resultSet.next()) {
+                    partId = resultSet.getLong(1);
+                    instanceId = resultSet.getLong(2);
+
+                    newSlotPart = new SlotPartData(partId, instanceId);
+                    slotPartList.add(newSlotPart);
+                }
+
+                unAssignedSlot = new SlotData(slotId, slotPartList);
+            } else {
+                unAssignedSlot = SlotData.EMPTY_SLOT;
             }
 
             return unAssignedSlot;

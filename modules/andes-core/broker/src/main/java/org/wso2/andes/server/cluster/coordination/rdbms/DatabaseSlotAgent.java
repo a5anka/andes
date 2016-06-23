@@ -168,10 +168,10 @@ public class DatabaseSlotAgent implements SlotAgent, StoreHealthListener {
      * {@inheritDoc}
      */
     @Override
-    public Slot getUnAssignedSlot(String queueName) throws AndesException {
+    public SlotData getUnAssignedSlot(String queueName) throws AndesException {
 
         String task = "retrieve unassigned slot for queue: " + queueName;
-        Slot unassignedSlot = null;
+        SlotData unassignedSlot = null;
         for (int attemptCount = 1; attemptCount <= MAX_STORE_FAILURE_TOLERANCE_COUNT; attemptCount++) {
             waitUntilStoresBecomeAvailable(task);
             try {

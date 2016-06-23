@@ -627,7 +627,7 @@ public class HazelcastAgent implements SlotAgent {
      * {@inheritDoc}
      */
     @Override
-    public Slot getUnAssignedSlot(String queueName) throws AndesException {
+    public SlotData getUnAssignedSlot(String queueName) throws AndesException {
         Slot slotToBeAssigned = null;
         try {
             TreeSetSlotWrapper unAssignedSlotWrapper = unAssignedSlotMap.get(queueName);
@@ -644,7 +644,7 @@ public class HazelcastAgent implements SlotAgent {
             throw new AndesException("Failed to get unassigned slot for queue : " +
                     queueName, ex);
         }
-        return slotToBeAssigned;
+        return SlotData.EMPTY_SLOT;
     }
 
     /**

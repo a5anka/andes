@@ -74,7 +74,7 @@ public interface SlotAgent {
 	 * @return unassigned slot object
 	 */
 
-	Slot getUnAssignedSlot(String queueName) throws AndesException;
+	SlotData getUnAssignedSlot(String queueName) throws AndesException;
 
 	/**
 	 * Update slot assignment in database

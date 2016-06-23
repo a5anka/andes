@@ -119,11 +119,11 @@ public class SlotManagerClusterMode {
          */
         String lockKey = queueName + SlotManagerClusterMode.class;
         synchronized (lockKey.intern()) {
-            slotToBeAssigned = getUnassignedSlot(queueName);
+//            slotToBeAssigned = getUnassignedSlot(queueName);
 
-            if (null == slotToBeAssigned) {
+//            if (null == slotToBeAssigned) {
                 slotToBeAssigned = getOverlappedSlot(nodeId, queueName);
-            }
+//            }
             if (null == slotToBeAssigned) {
                 slotToBeAssigned = getFreshSlot(queueName, nodeId);
             }
@@ -197,15 +197,15 @@ public class SlotManagerClusterMode {
      * @param queueName name of the queue slot is required
      * @return slot or null if cannot find
      */
-    private Slot getUnassignedSlot(String queueName) throws AndesException {
-        Slot slotToBeAssigned;
+    private SlotData getUnassignedSlot(String queueName) throws AndesException {
+        SlotData slotToBeAssigned;
         String lockKey = queueName + SlotManagerClusterMode.class;
         synchronized (lockKey.intern()) {
             //get oldest unassigned slot from database
             slotToBeAssigned = slotAgent.getUnAssignedSlot(queueName);
 
             if (log.isDebugEnabled()) {
-                if (null != slotToBeAssigned) {
+                if (SlotData.EMPTY_SLOT != slotToBeAssigned) {
                     log.debug("Giving a slot from unassigned slots. Slot: " + slotToBeAssigned +
                             " to queue: " + queueName);
                 }
@@ -644,7 +644,13 @@ public class SlotManagerClusterMode {
 
         String lockKey = queueName + SlotManagerClusterMode.class;
         synchronized (lockKey.intern()) {
-            slotData = getFreshSlotNew(queueName, nodeId);
+            slotData = getUnassignedSlot(queueName);
+
+            if (SlotData.EMPTY_SLOT == slotData) {
+                slotData = getFreshSlotNew(queueName, nodeId);
+            } else {
+                slotAgent.updateSlotAssignment(nodeId, queueName, slotData.getSlotId());
+            }
         }
 
         return slotData;

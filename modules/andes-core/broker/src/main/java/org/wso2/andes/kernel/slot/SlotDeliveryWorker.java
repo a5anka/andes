@@ -220,7 +220,10 @@ public class SlotDeliveryWorker extends Thread implements StoreHealthListener, N
                                         .sendMessagesInBuffer(messageDeliveryInfo, storageQueueName);
                             } else {
 //                                currentSlotId.setSlotInActive();
-//                                SlotDeletionExecutor.getInstance().executeSlotDeletion(currentSlotId);
+                                Slot slot = new Slot(currentSlotData.getSlotId());
+                                slot.setStorageQueueName(storageQueueName);
+                                SlotDeletionExecutor.getInstance().executeSlotDeletion(
+                                        slot);
                             }
                         }
 
@@ -412,7 +415,7 @@ public class SlotDeliveryWorker extends Thread implements StoreHealthListener, N
         long startTime = System.currentTimeMillis();
         SlotData slotData = slotCoordinator.getSlotId(storageQueueName);
 
-        log.info("Returned slot id is " + slotData);
+        log.info("Returned slot id is " + slotData.getSlotId());
         long endTime = System.currentTimeMillis();
 
         if (log.isDebugEnabled()) {

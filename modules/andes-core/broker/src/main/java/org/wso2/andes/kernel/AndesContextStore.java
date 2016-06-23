@@ -20,6 +20,7 @@ package org.wso2.andes.kernel;
 
 import org.wso2.andes.configuration.util.ConfigurationProperties;
 import org.wso2.andes.kernel.slot.Slot;
+import org.wso2.andes.kernel.slot.SlotData;
 import org.wso2.andes.kernel.slot.SlotPartData;
 import org.wso2.andes.kernel.slot.StoredSlotPartData;
 import org.wso2.andes.kernel.slot.SlotState;
@@ -329,7 +330,7 @@ public interface AndesContextStore extends HealthAwareStore{
      * @return unassigned slot object if found
      * @throws AndesException
      */
-    Slot selectUnAssignedSlot(String queueName) throws AndesException;
+    SlotData selectUnAssignedSlot(String queueName) throws AndesException;
 
     /**
      * Get last assigned id for a queue.
