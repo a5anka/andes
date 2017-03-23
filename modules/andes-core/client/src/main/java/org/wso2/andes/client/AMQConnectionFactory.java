@@ -29,9 +29,6 @@ import org.wso2.andes.jms.ConnectionURL;
 import org.wso2.andes.url.AMQBindingURL;
 import org.wso2.andes.url.URLSyntaxException;
 
-import javax.jms.*;
-import javax.naming.*;
-import javax.naming.spi.ObjectFactory;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.net.InetAddress;
@@ -570,7 +567,7 @@ public class AMQConnectionFactory implements ConnectionFactory, QueueConnectionF
 
     // ---------------------------------------------------------------------------------------------------
     // the following methods are provided for XA compatibility
-    // Those methods are only supported by 0_10 and above 
+    // Those methods are only supported by 0_9_1 and above
     // ---------------------------------------------------------------------------------------------------
 
     /**

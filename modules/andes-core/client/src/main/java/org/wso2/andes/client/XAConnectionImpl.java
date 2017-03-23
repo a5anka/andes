@@ -20,7 +20,15 @@ package org.wso2.andes.client;
 import org.wso2.andes.AMQException;
 import org.wso2.andes.jms.ConnectionURL;
 
-import javax.jms.*;
+import javax.jms.JMSException;
+import javax.jms.QueueSession;
+import javax.jms.TopicSession;
+import javax.jms.XAConnection;
+import javax.jms.XAQueueConnection;
+import javax.jms.XAQueueSession;
+import javax.jms.XASession;
+import javax.jms.XATopicConnection;
+import javax.jms.XATopicSession;
 
 /**
  * This class implements the javax.njms.XAConnection interface
@@ -31,8 +39,7 @@ public class XAConnectionImpl extends AMQConnection implements XAConnection, XAQ
     /**
      * Create a XAConnection from a connectionURL
      */
-    public XAConnectionImpl(ConnectionURL connectionURL, SSLConfiguration sslConfig) throws AMQException
-    {
+    public XAConnectionImpl(ConnectionURL connectionURL, SSLConfiguration sslConfig) throws AMQException {
         super(connectionURL, sslConfig);
     }
 
@@ -44,8 +51,7 @@ public class XAConnectionImpl extends AMQConnection implements XAConnection, XAQ
      * @throws JMSException If the XAConnectiono fails to create an XASession due to
      *                      some internal error.
      */
-    public synchronized XASession createXASession() throws JMSException
-    {
+    public synchronized XASession createXASession() throws JMSException {
         checkNotClosed();
         return _delegate.createXASession();
     }
@@ -58,21 +64,45 @@ public class XAConnectionImpl extends AMQConnection implements XAConnection, XAQ
      * @throws JMSException If the XAQueueConnectionImpl fails to create an XASession due to
      *                      some internal error.
      */
-    public XAQueueSession createXAQueueSession() throws JMSException
-    {
+    public XAQueueSession createXAQueueSession() throws JMSException {
+        checkNotClosed();
         return (XAQueueSession) createXASession();
     }
 
-    //-- Interface  XATopicConnection
     /**
-     * Creates an XAQueueSession.
+     * Creates a QueueSession.
      *
      * @return A newly created XASession.
      * @throws JMSException If the XAQueueConnectionImpl fails to create an XASession due to
      *                      some internal error.
      */
-    public XATopicSession createXATopicSession() throws JMSException
-    {
+    public QueueSession createQueueSession(boolean transacted, int acknowledgeMode) throws JMSException {
+        checkNotClosed();
+        return (QueueSession) createXASession();
+    }
+
+    //-- Interface  XATopicConnection
+    /**
+     * Creates an XATopicSession.
+     *
+     * @return A newly created XASession.
+     * @throws JMSException If the XATopicConnectionImpl fails to create an XASession due to
+     *                      some internal error.
+     */
+    public XATopicSession createXATopicSession() throws JMSException {
+        checkNotClosed();
         return (XATopicSession) createXASession();
+    }
+
+    /**
+     * Creates an TopicSession.
+     *
+     * @return A newly created XASession.
+     * @throws JMSException If the XATopicConnectionImpl fails to create an XASession due to
+     *                      some internal error.
+     */
+    public TopicSession createTopicSession(boolean transacted, int acknowledgeMode) throws JMSException {
+        checkNotClosed();
+        return (TopicSession) createXASession();
     }
 }
