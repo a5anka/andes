@@ -270,6 +270,18 @@ public class SubscriberConnection {
     }
 
     /**
+     * Check consume-ok frame is sent.
+     * @return true if consume-ok frame is sent.
+     */
+    public boolean isReadyToDeliver() {
+        return outBoundMessageTracker.isReadyToDeliver();
+    }
+
+    public void setIsReadyToDeliver(boolean value) {
+        outBoundMessageTracker.setReadyToDeliver(value);
+    }
+
+    /**
      * Returns if the subscription is marked as suspended.
      *
      * @return true if the subscription is suspended.

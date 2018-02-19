@@ -47,9 +47,9 @@ public class BasicConsumeMethodHandler implements StateAwareMethodListener<Basic
     {
     }
 
-    public void methodReceived(AMQStateManager stateManager, BasicConsumeBody body, int channelId) throws AMQException
-    {
-        AMQProtocolSession protocolConnection = stateManager.getProtocolSession();
+    public void methodReceived(AMQStateManager stateManager, final BasicConsumeBody body, final int channelId)
+            throws AMQException {
+        final AMQProtocolSession protocolConnection = stateManager.getProtocolSession();
 
         AMQChannel channel = protocolConnection.getChannel(channelId);
 
@@ -116,41 +116,40 @@ public class BasicConsumeMethodHandler implements StateAwareMethodListener<Basic
                     consumerTagName = null;
                 }
 
-                try
-                {
-                    if(consumerTagName == null || channel.getSubscription(consumerTagName) == null)
-                    {
-
-                        AMQShortString consumerTag = channel.subscribeToQueue(consumerTagName, queue, !body.getNoAck(),
-                                                                              body.getArguments(), body.getNoLocal(), body.getExclusive());
-                        if (!body.getNowait())
-                        {
-                            MethodRegistry methodRegistry = protocolConnection.getMethodRegistry();
-                            AMQMethodBody responseBody = methodRegistry.createBasicConsumeOkBody(consumerTag);
-                            protocolConnection.writeFrame(responseBody.generateFrame(channelId));
-
+                try {
+                    if (consumerTagName == null || channel.getSubscription(consumerTagName) == null) {
+                        final AMQShortString tag;
+                        if (consumerTagName == null) {
+                            tag = new AMQShortString("sgen_" + channel.getNextConsumerTag());
+                            AMQShortString consumerTag = consumerTagName;
+                        } else {
+                            tag = consumerTagName;
                         }
-                    }
-                    else
-                    {
-                        AMQShortString msg = new AMQShortString("Non-unique consumer tag, '" + body.getConsumerTag() + "'");
+                        channel.subscribeToQueue(tag, queue, !body.getNoAck(), body.getArguments(), body.getNoLocal(),
+                                body.getExclusive(),
+                                new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        if (!body.getNowait()) {
+                                            MethodRegistry methodRegistry = protocolConnection.getMethodRegistry();
+                                            AMQMethodBody responseBody = methodRegistry.createBasicConsumeOkBody(tag);
+                                            protocolConnection.writeFrame(responseBody.generateFrame(channelId));
+                                        }
+                                    }
+                                }
+                        );
 
-                        MethodRegistry methodRegistry = protocolConnection.getMethodRegistry();
-                        AMQMethodBody responseBody = methodRegistry.createConnectionCloseBody(AMQConstant.NOT_ALLOWED.getCode(),    // replyCode
-                                                                 msg,               // replytext
-                                                                 body.getClazz(),
-                                                                 body.getMethod());
-                        protocolConnection.writeFrame(responseBody.generateFrame(0));
                     }
-
                 }
                 catch (org.wso2.andes.AMQInvalidArgumentException ise)
                 {
                     _logger.debug("Closing connection due to invalid selector");
 
                     MethodRegistry methodRegistry = protocolConnection.getMethodRegistry();
-                    AMQMethodBody responseBody = methodRegistry.createChannelCloseBody(AMQConstant.INVALID_ARGUMENT.getCode(),
-                                                                                       new AMQShortString(ise.getMessage()),
+                    AMQMethodBody responseBody = methodRegistry.createChannelCloseBody(AMQConstant.INVALID_ARGUMENT
+                                    .getCode(),
+                                                                                       new AMQShortString(ise
+                                                                                               .getMessage()),
                                                                                        body.getClazz(),
                                                                                        body.getMethod());
                     protocolConnection.writeFrame(responseBody.generateFrame(channelId));
