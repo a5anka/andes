@@ -194,6 +194,8 @@ public class AndesSubscriptionManager implements NetworkPartitionListener, Store
         clusterNotificationAgent.notifySubscriptionsChange(subscription,
                 ClusterNotificationListener.SubscriptionChange.Added);
 
+        subscriptionRequest.getPostOpenSubscriptionAction().run();
+        subscriptionRequest.getSubscriber().setReadyToDeliver(true);
     }
 
     /**
