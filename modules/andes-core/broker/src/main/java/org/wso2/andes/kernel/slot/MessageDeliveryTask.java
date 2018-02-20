@@ -133,7 +133,6 @@ final class MessageDeliveryTask extends Task {
      */
     @Override
     public void onRemove() {
-        onStopDelivery();
     }
 
     /**
@@ -165,10 +164,4 @@ final class MessageDeliveryTask extends Task {
         return currentSlot;
     }
 
-    /**
-     * Update slot states when delivery stop
-     */
-    private void onStopDelivery() {
-        storageQueue.clearMessagesReadToBufferForDelivery();
-    }
 }
