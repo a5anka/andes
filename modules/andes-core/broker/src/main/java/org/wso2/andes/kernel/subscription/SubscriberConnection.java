@@ -37,24 +37,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 public class SubscriberConnection {
 
-    /*
-      This parameter is used to keep hasRoomToAcceptMessages check in fault state, until we send the
-      consume-ok frame to the consumer.
-    */
-    private boolean readyToDeliver = false;
-
-    public void setReadyToDeliver(boolean ready) {
-        readyToDeliver = ready;
-    }
-
-    /**
-     * Check consume-ok frame is sent.
-     * @return true if consume-ok frame is sent.
-     */
-    public boolean isReadyToDeliver() {
-        return readyToDeliver;
-    }
-
     private String connectedIP;
 
     private UUID protocolChannelID;
@@ -285,6 +267,14 @@ public class SubscriberConnection {
      */
     public boolean hasRoomToAcceptMessages() {
         return outBoundMessageTracker.hasRoomToAcceptMessages();
+    }
+
+    public boolean isReadyToDeliver() {
+        return outBoundMessageTracker.isReadyToDeliver();
+    }
+
+    public void setReadyToDeliver(boolean value) {
+        outBoundMessageTracker.setReadyToDeliver(value);
     }
 
     /**
