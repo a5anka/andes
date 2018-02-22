@@ -189,11 +189,19 @@ public class PersistenceStoreConnector implements MQTTConnector {
                     subscribedNode, mqttTopicSubscriber
                     .getChannelID(), mqttTopicSubscriber);
 
+            //This is a temporary thread added since MQTT is using the same Andes subscription as AMQP
+            Runnable bogusCallback = new Runnable() {
+                @Override
+                public void run() {
+                    //Do nothing
+                }
+            };
+
             InboundSubscriptionEvent openSubscriptionEvent = new InboundSubscriptionEvent(ProtocolType.MQTT,
                     "", localSubscription.getStorageQueue().getName(),
                     localSubscription.getStorageQueue()
                     .getMessageRouterBindingKey(),
-                    connection);
+                    connection, bogusCallback);
 
             //notify subscription create event
             Andes.getInstance().openLocalSubscription(openSubscriptionEvent);
@@ -317,9 +325,17 @@ public class PersistenceStoreConnector implements MQTTConnector {
             SubscriberConnection connection = new SubscriberConnection("0.0.0.0", subscribedNode, mqttTopicSubscriber
                     .getChannelID(), mqttTopicSubscriber);
 
+            //This is a temporary thread added since MQTT is using the same Andes subscription as AMQP
+            Runnable bogusCallback = new Runnable() {
+                @Override
+                public void run() {
+                    //Do nothing
+                }
+            };
+
             InboundSubscriptionEvent subscriptionCloseEvent = new InboundSubscriptionEvent(ProtocolType.MQTT,
                     "", localSubscription.getStorageQueue().getName(), localSubscription.getStorageQueue()
-                    .getMessageRouterBindingKey(), connection);
+                    .getMessageRouterBindingKey(), connection, bogusCallback);
 
             Andes.getInstance().closeLocalSubscription(subscriptionCloseEvent);
 
