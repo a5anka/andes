@@ -111,7 +111,7 @@ public class ThriftClientFactory extends BasePooledObjectFactory<SlotManagementS
         try {
             return client.getObject().healthCheck();
         } catch (TException e) {
-            log.error("exception occurs when validating the thrift connection", e);
+            log.debug("exception occurs when validating the thrift connection", e);
         }
         return false;
     }
