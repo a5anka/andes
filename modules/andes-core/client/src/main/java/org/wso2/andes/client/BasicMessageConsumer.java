@@ -31,6 +31,7 @@ import org.wso2.andes.client.message.MessageFactoryRegistry;
 import org.wso2.andes.client.protocol.AMQProtocolHandler;
 import org.wso2.andes.framing.AMQShortString;
 import org.wso2.andes.framing.FieldTable;
+import org.wso2.andes.jms.ConnectionURL;
 import org.wso2.andes.jms.MessageConsumer;
 import org.wso2.andes.jms.Session;
 
@@ -69,6 +70,10 @@ public abstract class BasicMessageConsumer<U> extends Closeable implements Messa
      * "AndesRedeliveryDelay" property.
      */
     private long redeliveryDelay = 0L;
+
+    /*The redelivery delay for the connection in milliseconds. If this property is set, the redelivery of messages
+    for the client will be delayed by this time period.*/
+    private long redeliveryDelayForConnection;
 
     protected AMQDestination _destination;
 
@@ -236,6 +241,30 @@ public abstract class BasicMessageConsumer<U> extends Closeable implements Messa
                 throw new IllegalArgumentException("AndesRedeliveryDelay property should be greater than 0.");
             }
         }
+
+        /*Get the redelivery delay from the connection string. Value in milliseconds.
+        This has high precedence over System property AndesRedeliveryDelay.*/
+        String redeliveryDelayPerConnection = _connection.getConnectionURL().getOptions()
+                .get(ConnectionURL.OPTIONS_CONNECTION_REDELIVERY_DELAY);
+        if (redeliveryDelayPerConnection != null && !redeliveryDelayPerConnection.isEmpty()) {
+            try {
+                redeliveryDelayForConnection = Long.parseLong(redeliveryDelayPerConnection);
+                if (redeliveryDelayForConnection < 0) {
+                    throw new IllegalArgumentException(
+                            ConnectionURL.OPTIONS_CONNECTION_REDELIVERY_DELAY + " property should be greater than 0.");
+                }
+                if (_logger.isDebugEnabled()) {
+                    _logger.debug(
+                            ConnectionURL.OPTIONS_CONNECTION_REDELIVERY_DELAY + " property read from connection url:  "
+                                    + redeliveryDelayPerConnection);
+                }
+            } catch (NumberFormatException e) {
+                throw new IllegalArgumentException(
+                        "Please set a proper Long value for " + ConnectionURL.OPTIONS_CONNECTION_REDELIVERY_DELAY
+                                + " property in milliseconds.");
+            }
+        }
+
     }
 
     public AMQDestination getDestination()
@@ -777,7 +806,9 @@ public abstract class BasicMessageConsumer<U> extends Closeable implements Messa
             {
                 // If message redelivery delay is set, redelivered messages are queued in delay queue. Else directly
                 // publish to the onMessage listener.
-                if (0 != redeliveryDelay && jmsMessage.getJMSRedelivered()) {
+                if (redeliveryDelayForConnection > 0 && jmsMessage.getJMSRedelivered()) {
+                    _synchronousQueue.add(new DelayedObject(redeliveryDelayForConnection, jmsMessage));
+                } else  if (0 != redeliveryDelay && jmsMessage.getJMSRedelivered()) {
                     _synchronousQueue.add(new DelayedObject(redeliveryDelay, jmsMessage));
                 } else {
                     deliverMessagesToMessageListener(jmsMessage);
@@ -788,7 +819,9 @@ public abstract class BasicMessageConsumer<U> extends Closeable implements Messa
                 // Redelivered messages will be added with the mentioned redelivery delay. If not mentioned, delay will
                 // be 0L. We should not be allowed to add a message is the
                 // consumer is closed.
-                if (jmsMessage.getJMSRedelivered()) {
+                if (redeliveryDelayForConnection > 0 && jmsMessage.getJMSRedelivered()) {
+                    _synchronousQueue.add(new DelayedObject(redeliveryDelayForConnection, jmsMessage));
+                } else  if (jmsMessage.getJMSRedelivered()) {
                     _synchronousQueue.put(new DelayedObject(redeliveryDelay, jmsMessage));
                 } else {
                     _synchronousQueue.put(new DelayedObject(0, jmsMessage));

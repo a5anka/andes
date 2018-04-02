@@ -23,6 +23,7 @@ package org.wso2.andes.jms;
 import org.wso2.andes.framing.AMQShortString;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  Connection URL format
@@ -40,15 +41,18 @@ public interface ConnectionURL
     public static final String OPTIONS_USE_LEGACY_MAP_MESSAGE_FORMAT = "use_legacy_map_msg_format";
     public static final String OPTIONS_BROKERLIST = "brokerlist";
     public static final String OPTIONS_FAILOVER = "failover";
-    public static final String OPTIONS_FAILOVER_CYCLE = "cyclecount";    
+    public static final String OPTIONS_FAILOVER_CYCLE = "cyclecount";
     public static final String OPTIONS_DEFAULT_TOPIC_EXCHANGE = "defaultTopicExchange";
     public static final String OPTIONS_DEFAULT_QUEUE_EXCHANGE = "defaultQueueExchange";
     public static final String OPTIONS_TEMPORARY_TOPIC_EXCHANGE = "temporaryTopicExchange";
     public static final String OPTIONS_TEMPORARY_QUEUE_EXCHANGE = "temporaryQueueExchange";
+    public static final String OPTIONS_CONNECTION_REDELIVERY_DELAY = "redeliveryDelay";
     public static final byte  URL_0_8 = 1;
     public static final byte  URL_0_10 = 2;
     
     String getURL();
+
+    Map<String, String> getOptions();
 
     String getFailoverMethod();
 
