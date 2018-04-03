@@ -62,15 +62,16 @@ public class ConnectionURLTest extends TestCase
     public void testRedeliveryURL() throws URLSyntaxException {
 
         String url = "amqp://ram:you@/test?redeliveryDelay='3000'&brokerlist='tcp://localhost:5672'";
-        ConnectionURL connectionurl = new AMQConnectionURL(url);
+        ConnectionURL amqConnectionURL = new AMQConnectionURL(url);
 
-        assertEquals("3000", connectionurl.getOptions().get(ConnectionURL.OPTIONS_CONNECTION_REDELIVERY_DELAY));
-        assertTrue(connectionurl.getUsername().equals("ram"));
-        assertTrue(connectionurl.getPassword().equals("you"));
-        assertTrue(connectionurl.getVirtualHost().equals("/test"));
-        assertTrue(connectionurl.getBrokerCount() == 1);
+        assertEquals("3000", ((AMQConnectionURL) amqConnectionURL).getOptions()
+                .get(ConnectionURL.OPTIONS_CONNECTION_REDELIVERY_DELAY));
+        assertTrue(amqConnectionURL.getUsername().equals("ram"));
+        assertTrue(amqConnectionURL.getPassword().equals("you"));
+        assertTrue(amqConnectionURL.getVirtualHost().equals("/test"));
+        assertTrue(amqConnectionURL.getBrokerCount() == 1);
 
-        BrokerDetails service = connectionurl.getBrokerDetails(0);
+        BrokerDetails service = amqConnectionURL.getBrokerDetails(0);
         assertTrue(service.getTransport().equals("tcp"));
         assertTrue(service.getHost().equals("localhost"));
         assertTrue(service.getPort() == 5672);

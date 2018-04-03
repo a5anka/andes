@@ -66,14 +66,13 @@ public abstract class BasicMessageConsumer<U> extends Closeable implements Messa
     private final boolean _noLocal;
 
     /**
-     * The delay amount in milliseconds for redelivered messages. Value can be overwritten by setting
-     * "AndesRedeliveryDelay" property.
+     * The delay amount in milliseconds for redelivered messages.
+     * This value can be overwritten by setting "AndesRedeliveryDelay" property or by setting the connection option
+     * {{ConnectionURL.OPTIONS_CONNECTION_REDELIVERY_DELAY}}. The property
+     * {{ConnectionURL.OPTIONS_CONNECTION_REDELIVERY_DELAY}} has high precedence over the system property
+     * "AndesRedeliveryDelay".
      */
     private long redeliveryDelay = 0L;
-
-    /*The redelivery delay for the connection in milliseconds. If this property is set, the redelivery of messages
-    for the client will be delayed by this time period.*/
-    private long redeliveryDelayForConnection;
 
     protected AMQDestination _destination;
 
@@ -232,39 +231,31 @@ public abstract class BasicMessageConsumer<U> extends Closeable implements Messa
             _acknowledgeMode = acknowledgeMode;
         }
 
-        // Get the andes redelivery delay value from system properties. Value is milliseconds.
-        String andesDeliveryDelayString = System.getProperty("AndesRedeliveryDelay");
-        if (null != andesDeliveryDelayString && !andesDeliveryDelayString.isEmpty()) {
-            redeliveryDelay = Long.parseLong(andesDeliveryDelayString);
-            // Validating redelivery delay value.
-            if (redeliveryDelay < 0) {
-                throw new IllegalArgumentException("AndesRedeliveryDelay property should be greater than 0.");
-            }
+        /*Get the redelivery delay from the connection string. Value in milliseconds. If its not available read from
+        system property AndesRedeliveryDelay.*/
+        String redeliveryDelayString = ((AMQConnectionURL) _connection.getConnectionURL()).getOptions()
+                .get(ConnectionURL.OPTIONS_CONNECTION_REDELIVERY_DELAY);
+        if (redeliveryDelayString == null || redeliveryDelayString.isEmpty()) {
+            redeliveryDelayString = System.getProperty("AndesRedeliveryDelay");
         }
 
-        /*Get the redelivery delay from the connection string. Value in milliseconds.
-        This has high precedence over System property AndesRedeliveryDelay.*/
-        String redeliveryDelayPerConnection = _connection.getConnectionURL().getOptions()
-                .get(ConnectionURL.OPTIONS_CONNECTION_REDELIVERY_DELAY);
-        if (redeliveryDelayPerConnection != null && !redeliveryDelayPerConnection.isEmpty()) {
+        if (redeliveryDelayString != null && !redeliveryDelayString.isEmpty()) {
             try {
-                redeliveryDelayForConnection = Long.parseLong(redeliveryDelayPerConnection);
-                if (redeliveryDelayForConnection < 0) {
-                    throw new IllegalArgumentException(
-                            ConnectionURL.OPTIONS_CONNECTION_REDELIVERY_DELAY + " property should be greater than 0.");
+                redeliveryDelay = Long.parseLong(redeliveryDelayString);
+                if (redeliveryDelay < 0) {
+                    throw new IllegalArgumentException("Redelivery property (AndesRedeliveryDelay/redeliverydelay) "
+                            + "should be greater than 0.");
                 }
                 if (_logger.isDebugEnabled()) {
                     _logger.debug(
-                            ConnectionURL.OPTIONS_CONNECTION_REDELIVERY_DELAY + " property read from connection url:  "
-                                    + redeliveryDelayPerConnection);
+                            "Added a redelivery delay of " + redeliveryDelay + " milliseconds for the destination "
+                                    + destination.toString());
                 }
             } catch (NumberFormatException e) {
-                throw new IllegalArgumentException(
-                        "Please set a proper Long value for " + ConnectionURL.OPTIONS_CONNECTION_REDELIVERY_DELAY
-                                + " property in milliseconds.");
+                throw new IllegalArgumentException("Please set a proper Long value for redelivery delay "
+                        + "(AndesRedeliveryDelay/redeliverydelay) in milliseconds.");
             }
         }
-
     }
 
     public AMQDestination getDestination()
@@ -806,9 +797,7 @@ public abstract class BasicMessageConsumer<U> extends Closeable implements Messa
             {
                 // If message redelivery delay is set, redelivered messages are queued in delay queue. Else directly
                 // publish to the onMessage listener.
-                if (redeliveryDelayForConnection > 0 && jmsMessage.getJMSRedelivered()) {
-                    _synchronousQueue.add(new DelayedObject(redeliveryDelayForConnection, jmsMessage));
-                } else  if (0 != redeliveryDelay && jmsMessage.getJMSRedelivered()) {
+                if (0 != redeliveryDelay && jmsMessage.getJMSRedelivered()) {
                     _synchronousQueue.add(new DelayedObject(redeliveryDelay, jmsMessage));
                 } else {
                     deliverMessagesToMessageListener(jmsMessage);
@@ -819,9 +808,7 @@ public abstract class BasicMessageConsumer<U> extends Closeable implements Messa
                 // Redelivered messages will be added with the mentioned redelivery delay. If not mentioned, delay will
                 // be 0L. We should not be allowed to add a message is the
                 // consumer is closed.
-                if (redeliveryDelayForConnection > 0 && jmsMessage.getJMSRedelivered()) {
-                    _synchronousQueue.add(new DelayedObject(redeliveryDelayForConnection, jmsMessage));
-                } else  if (jmsMessage.getJMSRedelivered()) {
+                if (jmsMessage.getJMSRedelivered()) {
                     _synchronousQueue.put(new DelayedObject(redeliveryDelay, jmsMessage));
                 } else {
                     _synchronousQueue.put(new DelayedObject(0, jmsMessage));

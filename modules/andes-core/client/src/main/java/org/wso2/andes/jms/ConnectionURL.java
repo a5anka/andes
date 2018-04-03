@@ -23,7 +23,6 @@ package org.wso2.andes.jms;
 import org.wso2.andes.framing.AMQShortString;
 
 import java.util.List;
-import java.util.Map;
 
 /**
  Connection URL format
@@ -46,13 +45,11 @@ public interface ConnectionURL
     public static final String OPTIONS_DEFAULT_QUEUE_EXCHANGE = "defaultQueueExchange";
     public static final String OPTIONS_TEMPORARY_TOPIC_EXCHANGE = "temporaryTopicExchange";
     public static final String OPTIONS_TEMPORARY_QUEUE_EXCHANGE = "temporaryQueueExchange";
-    public static final String OPTIONS_CONNECTION_REDELIVERY_DELAY = "redeliveryDelay";
+    public static final String OPTIONS_CONNECTION_REDELIVERY_DELAY = "redeliverydelay";
     public static final byte  URL_0_8 = 1;
     public static final byte  URL_0_10 = 2;
     
     String getURL();
-
-    Map<String, String> getOptions();
 
     String getFailoverMethod();
 
