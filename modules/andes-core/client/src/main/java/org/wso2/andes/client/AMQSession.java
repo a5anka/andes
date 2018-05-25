@@ -120,15 +120,16 @@ import javax.jms.TransactionRolledBackException;
  * @todo Two new objects created on every failover supported method call. Consider more efficient ways of doing this,
  * after looking at worse bottlenecks first.
  */
-public abstract class AMQSession<C extends BasicMessageConsumer, P extends BasicMessageProducer> extends Closeable implements Session, QueueSession, TopicSession
+public abstract class AMQSession<C extends BasicMessageConsumer, P extends BasicMessageProducer>
+        extends Closeable implements Session, QueueSession, TopicSession
 {
     /**
      * Provided mutual exclusion when starting the dispatcher thread.
      *
-     * NOTE: AMQSession object is not used as a monitor object since AMQSession object is used as the JMS Session object as well.
-     * JMS session objects are not thread safe. Hence JMS application developers will use the JMS session object as a
-     * monitor object when assuring mutual exclusion of the session. This might lead to deadlocks in failover
-     * scenarios, hence avoiding using the session object as a monitor object.
+     * NOTE: AMQSession object is not used as a monitor object since AMQSession object is used as the JMS Session object
+     * as well. JMS session objects are not thread safe. Hence JMS application developers will use the JMS session
+     * object as a monitor object when assuring mutual exclusion of the session. This might lead to deadlocks in
+     * failover scenarios, hence avoiding using the session object as a monitor object.
      */
     private final Lock dispatcherInitLock = new ReentrantLock();
 
