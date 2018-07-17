@@ -96,8 +96,6 @@ public class SlotMessageCounter implements StoreHealthListener {
         timeOutForMessagesInQueue = AndesConfigurationManager
                 .readValue(AndesConfiguration.PERFORMANCE_TUNING_SLOTS_MESSAGE_ACCUMULATION_TIMEOUT);
 
-        slotCoordinator = MessagingEngine.getInstance().getSlotCoordinator();
-
         messageStoresUnavailable = false;
         FailureObservingStoreManager.registerStoreHealthListener(this);
 
@@ -308,6 +306,15 @@ public class SlotMessageCounter implements StoreHealthListener {
                 log.error("Error occurred while executing scheduled submit slot", e);
             }
         }
+    }
+
+    /**
+     * Sets the underlying slot coordinator.
+     *
+     * @param slotCoordinator {@link SlotCoordinator} instance
+     */
+    public void setSlotCoordinator(SlotCoordinator slotCoordinator) {
+        this.slotCoordinator = slotCoordinator;
     }
 
     /**
