@@ -20,6 +20,7 @@
  */
 package org.wso2.andes.client;
 
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.wso2.andes.AMQConnectionFailureException;
@@ -86,6 +87,14 @@ public class AMQConnection extends Closeable implements Connection, QueueConnect
 {
     private static final Logger _logger = LoggerFactory.getLogger(AMQConnection.class);
 
+    /**
+     * A separate executor service is used to notify the connection exception listeners. We cannot use the JOB pool
+     * threads for notifying the exception listeners since it will block the frame processing which is critical for
+     * activities like connection handshakes.
+     */
+    private static final ExecutorService EXCEPTION_NOTIFIER_EXECUTOR
+            = Executors.newCachedThreadPool(new ThreadFactoryBuilder().setNameFormat("ExceptionNotifyingThread-%d")
+                                                                      .build());
 
     /**
      * This is the "root" mutex that must be held when doing anything that could be impacted by failover. This must be
@@ -1352,7 +1361,12 @@ public class AMQConnection extends Closeable implements Connection, QueueConnect
 
         // deliver the exception if there is a listener
         if (_exceptionListener != null) {
-            _exceptionListener.onException(je);
+            EXCEPTION_NOTIFIER_EXECUTOR.submit(new Runnable() {
+                @Override
+                public void run() {
+                    _exceptionListener.onException(je);
+                }
+            });
         } else {
             _logger.error("Throwable Received but no listener set.", cause);
         }
