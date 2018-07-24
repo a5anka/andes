@@ -20,7 +20,6 @@
  */
 package org.wso2.andes.client;
 
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.wso2.andes.AMQConnectionFailureException;
@@ -30,6 +29,7 @@ import org.wso2.andes.AMQProtocolException;
 import org.wso2.andes.AMQUnresolvedAddressException;
 import org.wso2.andes.client.failover.FailoverException;
 import org.wso2.andes.client.failover.FailoverProtectedOperation;
+import org.wso2.andes.client.pool.NamedThreadFactoryBuilder;
 import org.wso2.andes.client.protocol.AMQProtocolHandler;
 import org.wso2.andes.configuration.ClientProperties;
 import org.wso2.andes.exchange.ExchangeDefaults;
@@ -93,8 +93,8 @@ public class AMQConnection extends Closeable implements Connection, QueueConnect
      * activities like connection handshakes.
      */
     private static final ExecutorService EXCEPTION_NOTIFIER_EXECUTOR
-            = Executors.newCachedThreadPool(new ThreadFactoryBuilder().setNameFormat("ExceptionNotifyingThread-%d")
-                                                                      .build());
+            = Executors.newCachedThreadPool(new NamedThreadFactoryBuilder().setNameFormat("ExceptionNotifyingThread-%d")
+                                                                           .build());
 
     /**
      * This is the "root" mutex that must be held when doing anything that could be impacted by failover. This must be
