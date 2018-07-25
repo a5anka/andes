@@ -1359,18 +1359,6 @@ public class AMQConnection extends Closeable implements Connection, QueueConnect
             }
         }
 
-        // deliver the exception if there is a listener
-        if (_exceptionListener != null) {
-            EXCEPTION_NOTIFIER_EXECUTOR.submit(new Runnable() {
-                @Override
-                public void run() {
-                    _exceptionListener.onException(je);
-                }
-            });
-        } else {
-            _logger.error("Throwable Received but no listener set.", cause);
-        }
-
         // if we are closing the connection, close sessions first
         if (closer) {
             // get the failover mutex before trying to close
@@ -1381,6 +1369,18 @@ public class AMQConnection extends Closeable implements Connection, QueueConnect
                     _logger.error("Error closing all sessions.", e);
                 }
             }
+        }
+
+        // deliver the exception if there is a listener
+        if (_exceptionListener != null) {
+            EXCEPTION_NOTIFIER_EXECUTOR.submit(new Runnable() {
+                @Override
+                public void run() {
+                    _exceptionListener.onException(je);
+                }
+            });
+        } else {
+            _logger.error("Throwable Received but no listener set.", cause);
         }
     }
 
