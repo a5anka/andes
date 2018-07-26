@@ -316,13 +316,17 @@ public class RDBMSAndesContextStoreImpl implements AndesContextStore {
      * {@inheritDoc}
      */
     @Override
-    public void removeDurableSubscription(AndesSubscription subscription)
-            throws AndesException {
-        Connection connection = null;
-        PreparedStatement preparedStatement = null;
+    public void removeDurableSubscription(AndesSubscription subscription) throws AndesException {
 
         String destinationIdentifier = getDestinationIdentifier(subscription);
-        String subscriptionID = this.generateSubscriptionID(subscription);
+        String subscriptionID = generateSubscriptionID(subscription);
+
+        removeDurableSubscription(destinationIdentifier, subscriptionID);
+    }
+
+    public void removeDurableSubscription(String destinationIdentifier, String subscriptionID) throws AndesException {
+        Connection connection = null;
+        PreparedStatement preparedStatement = null;
 
         String task = RDBMSConstants.TASK_REMOVING_DURABLE_SUBSCRIPTION + "destination: " +
                 destinationIdentifier + " sub id: " + subscriptionID;
@@ -331,8 +335,7 @@ public class RDBMSAndesContextStoreImpl implements AndesContextStore {
         try {
 
             connection = getConnection();
-            preparedStatement = connection.prepareStatement(RDBMSConstants
-                    .PS_DELETE_DURABLE_SUBSCRIPTION);
+            preparedStatement = connection.prepareStatement(RDBMSConstants.PS_DELETE_DURABLE_SUBSCRIPTION);
             preparedStatement.setString(1, destinationIdentifier);
             preparedStatement.setString(2, subscriptionID);
             preparedStatement.executeUpdate();

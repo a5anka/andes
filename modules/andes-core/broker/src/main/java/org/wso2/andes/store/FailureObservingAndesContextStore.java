@@ -173,6 +173,16 @@ public class FailureObservingAndesContextStore extends FailureObservingStore<And
 
     }
 
+    @Override
+    public void removeDurableSubscription(String destinationIdentifier, String subscriptionID) throws AndesException {
+        try {
+            wrappedInstance.removeDurableSubscription(destinationIdentifier, subscriptionID);
+        } catch (AndesStoreUnavailableException exception) {
+            notifyFailures(exception);
+            throw exception;
+        }
+    }
+
     /**
      * {@inheritDoc}
      */

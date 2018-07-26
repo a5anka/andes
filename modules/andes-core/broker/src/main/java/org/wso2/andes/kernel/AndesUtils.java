@@ -127,4 +127,19 @@ public class AndesUtils {
         }
         return storageQueueName;
     }
+
+    public static String getDestinationName(String storageQueueName, String nodeId) {
+
+        String topicName = "";
+        if (storageQueueName.startsWith(AMQP_TOPIC_STORAGE_QUEUE_PREFIX)) {
+            topicName = storageQueueName.substring(AMQP_TOPIC_STORAGE_QUEUE_PREFIX.length() + 1,
+                                                   storageQueueName.length() - (nodeId.length() + 1));
+        }
+
+        if (storageQueueName.startsWith(MQTT_TOPIC_STORAGE_QUEUE_PREFIX)) {
+            topicName = storageQueueName.substring(MQTT_TOPIC_STORAGE_QUEUE_PREFIX.length() + 1,
+                                                   storageQueueName.length() - (nodeId.length() + 1));
+        }
+        return topicName;
+    }
 }

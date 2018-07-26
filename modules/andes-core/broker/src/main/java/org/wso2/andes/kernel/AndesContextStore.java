@@ -114,6 +114,15 @@ public interface AndesContextStore extends HealthAwareStore {
     void removeDurableSubscription(AndesSubscription subscription) throws AndesException;
 
     /**
+     * Remove stored subscription from durable store.
+     *
+     * @param destinationIdentifier binding key of the queue
+     * @param subscriptionID subscription ID
+     * @throws AndesException throws {@link AndesException}
+     */
+    void removeDurableSubscription(String destinationIdentifier, String subscriptionID) throws AndesException;
+
+    /**
      * Store details of node.
      *
      * @param nodeID id of the node
