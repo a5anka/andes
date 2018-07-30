@@ -118,46 +118,19 @@ public class AndesSubscription {
      */
     public AndesSubscription(String encodedSubscription) throws SubscriptionException {
 
-        SubscriberConnection subscriberConnection = null;
+        SubscriptionDataParser subscriptionDataParser = new SubscriptionDataParser(encodedSubscription);
 
-        String[] propertyToken = encodedSubscription.split(",");
-
-        for (String pt : propertyToken) {
-            String[] tokens = pt.split("=", 2);
-            switch (tokens[0]) {
-                case "subscriptionId":
-                    this.subscriptionId = tokens[1];
-                    break;
-                case "storageQueue":
-                    String storageQueueName = tokens[1];
-                    this.storageQueue = AndesContext.getInstance().
-                            getStorageQueueRegistry().getStorageQueue(storageQueueName);
-                    if (null == storageQueue) {
-                        throw new SubscriptionException("StorageQueue: " + storageQueueName
-                                + " is not registered while creating "
-                                + "subscription id=" + subscriptionId);
-                    }
-                    break;
-                case "protocolType":
-                    this.protocolType = ProtocolType.valueOf(tokens[1]);
-                    break;
-                case "isActive":
-                    this.isActive = Boolean.parseBoolean(tokens[1]);
-                    break;
-                case "subscriberConnection":
-                    byte[] decodedBytes = Base64.decodeBase64(tokens[1].getBytes());
-                    String decodedConnectionInfo = new String(decodedBytes);
-                    subscriberConnection = new SubscriberConnection(decodedConnectionInfo);
-                    break;
-                default:
-                    if (tokens[0].trim().length() > 0) {
-                        throw new UnsupportedOperationException("Unexpected token " + tokens[0]);
-                    }
-                    break;
-            }
+        subscriptionId = subscriptionDataParser.getSubscriptionId();
+        storageQueue = AndesContext.getInstance().
+                getStorageQueueRegistry().getStorageQueue(subscriptionDataParser.getStorageQueueName());
+        if (null == storageQueue) {
+            throw new SubscriptionException("StorageQueue: " + subscriptionDataParser.getStorageQueueName()
+                                                    + " is not registered while creating "
+                                                    + "subscription id=" + subscriptionId);
         }
-
-        this.subscriberConnection = subscriberConnection;
+        protocolType = ProtocolType.valueOf(subscriptionDataParser.getProtocolType());
+        isActive = subscriptionDataParser.isActive();
+        subscriberConnection = new SubscriberConnection(subscriptionDataParser.getDecodedConnectionInfo());
     }
 
     /**

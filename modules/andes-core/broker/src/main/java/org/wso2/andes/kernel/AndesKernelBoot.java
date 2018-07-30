@@ -36,6 +36,8 @@ import org.wso2.andes.kernel.slot.SlotDeletionExecutor;
 import org.wso2.andes.kernel.slot.SlotManagerClusterMode;
 import org.wso2.andes.kernel.subscription.AndesSubscriptionManager;
 import org.wso2.andes.kernel.subscription.StorageQueue;
+import org.wso2.andes.kernel.subscription.SubscriberConnection;
+import org.wso2.andes.kernel.subscription.SubscriptionDataParser;
 import org.wso2.andes.mqtt.utils.MQTTUtils;
 import org.wso2.andes.server.ClusterResourceHolder;
 import org.wso2.andes.server.cluster.ClusterAgent;
@@ -58,6 +60,7 @@ import org.wso2.carbon.user.api.UserStoreException;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -170,11 +173,13 @@ public class AndesKernelBoot {
                 hazelcastAgent.releaseInitializationLock();
             }
         } else {
+            removeNonDurableQueues();
             recoverMapsForEachQueue();
         }
     }
 
     private static void removeNonDurableQueues() throws AndesException {
+        removeNonDurableSubscriptions();
         List<StorageQueue> queueList = contextStore.getAllQueuesStored();
         for (StorageQueue storageQueue : queueList) {
             String queueName = storageQueue.getName();
@@ -184,6 +189,25 @@ public class AndesKernelBoot {
                 contextStore.deleteQueueInformation(queueName);
                 messageStore.removeQueue(queueName);
             }
+        }
+    }
+
+    private static void removeNonDurableSubscriptions() throws AndesException {
+        Map<String, String> results = AndesContext.getInstance().getAndesContextStore()
+                                                        .getAllDurableSubscriptionsByID();
+
+        for (Map.Entry<String, String> entry: results.entrySet()) {
+                SubscriptionDataParser subscriptionDataParser = new SubscriptionDataParser(entry.getValue());
+                if (subscriptionDataParser.getStorageQueueName()
+                                          .startsWith(AndesUtils.AMQP_TOPIC_STORAGE_QUEUE_PREFIX)) {
+
+                    SubscriberConnection subscriberConnection =
+                            new SubscriberConnection(subscriptionDataParser.getDecodedConnectionInfo());
+                    String destinationIdentifier =
+                            AndesUtils.getDestinationName(subscriptionDataParser.getStorageQueueName(),
+                                                          subscriberConnection.getConnectedNode());
+                    contextStore.removeDurableSubscription(destinationIdentifier, entry.getKey());
+                }
         }
     }
 
