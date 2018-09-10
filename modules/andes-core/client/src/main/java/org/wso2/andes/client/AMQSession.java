@@ -3321,7 +3321,7 @@ public abstract class AMQSession<C extends BasicMessageConsumer, P extends Basic
                 }
 
                 // Reject messages on pre-receive queue
-                consumer.rollbackPendingMessages();
+                consumer.clearPendingMessages();
 
                 // Reject messages on pre-dispatch queue
                 rejectMessagesForConsumerTag(consumer.getConsumerTag(), true, false);
