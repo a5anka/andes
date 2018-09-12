@@ -574,4 +574,8 @@ public class AndesSubscription {
     void detach() {
         attachedToQueue = false;
     }
+
+    public void clearUnackedMessages() {
+        subscriberConnection.clearAndReturnUnackedMessages();
+    }
 }
